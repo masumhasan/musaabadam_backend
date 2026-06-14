@@ -75,6 +75,7 @@ app.use('/api/v1/auth', require('./modules/auth/routes/auth.routes'));
 app.use('/api/v1/users', require('./modules/users/routes/user.routes'));
 app.use('/api/v1/products', require('./modules/products/routes/product.routes'));
 app.use('/api/v1/categories', require('./modules/products/routes/category.routes'));
+app.use('/api/v1/settings', require('./modules/settings/routes/settings.routes'));
 app.use('/api/v1/admin', require('./modules/admin/routes/admin.routes'));
 app.use('/api/v1/streams', require('./modules/streams/routes/stream.routes'));
 

@@ -7,6 +7,8 @@ const sellerCtrl = require('../controllers/admin.seller.controller');
 const adminCtrl = require('../controllers/admin.admin.controller');
 const categoryCtrl = require('../controllers/admin.category.controller');
 const productCtrl = require('../controllers/admin.product.controller');
+const settingsCtrl = require('../../settings/controllers/settings.controller');
+const { updateLegalContentValidator } = require('../../settings/validators/settings.validators');
 const {
   loginValidator,
   adminForgotPasswordValidator,
@@ -78,5 +80,9 @@ router.delete('/categories/:categoryId', canManageCategories, ...categoryIdParam
 router.get('/products', listProductsAdminValidator, validate, productCtrl.list);
 router.patch('/products/:productId/deactivate', ...productIdParam, validate, productCtrl.deactivate);
 router.patch('/products/:productId/activate', ...productIdParam, validate, productCtrl.activate);
+
+// ── Settings — legal content (any authenticated admin) ────────────────────────
+router.put('/settings/privacy-policy', updateLegalContentValidator, validate, settingsCtrl.updatePrivacyPolicy);
+router.put('/settings/terms', updateLegalContentValidator, validate, settingsCtrl.updateTerms);
 
 module.exports = router;
