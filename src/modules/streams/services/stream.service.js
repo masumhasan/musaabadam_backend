@@ -1,5 +1,6 @@
 const Stream = require('../../../models/Stream');
 const { STREAM_STATUS } = require('../../../models/Stream');
+const Product = require('../../../models/Product');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS } = require('../../../config/constants');
 const { getStreamClient, generateStreamToken, upsertStreamUser } = require('../../../utils/streamClient');
@@ -163,6 +164,81 @@ const getStream = async (streamId) => {
   return stream;
 };
 
+// ── Update scheduled stream ───────────────────────────────────────────────────
+
+const updateStream = async (sellerId, streamId, data) => {
+  const stream = await Stream.findOne({ _id: streamId, deletedAt: null });
+  if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
+  assertOwner(stream, sellerId);
+  if (stream.status !== STREAM_STATUS.SCHEDULED) {
+    throw new AppError('Only scheduled shows can be edited', HTTP_STATUS.CONFLICT);
+  }
+
+  if (data.title != null) stream.title = data.title;
+  if (data.description !== undefined) stream.description = data.description;
+  if (data.scheduledAt != null) stream.scheduledAt = new Date(data.scheduledAt);
+  if (data.categoryId !== undefined) stream.categoryId = data.categoryId || null;
+  if (data.thumbnailUrl !== undefined) stream.thumbnailUrl = data.thumbnailUrl || null;
+  if (data.tags != null) stream.tags = data.tags;
+  if (data.chatEnabled != null) stream.chatEnabled = data.chatEnabled;
+
+  await stream.save();
+  return stream;
+};
+
+// ── Create auction stream (starts immediately, pinned product) ────────────────
+
+const createAuctionStream = async (seller, data) => {
+  const product = await Product.findOne({ _id: data.productId, deletedAt: null });
+  if (!product) throw new AppError('Product not found', HTTP_STATUS.NOT_FOUND);
+  if (!product.sellerId.equals(seller._id)) throw new AppError('Not authorized', HTTP_STATUS.FORBIDDEN);
+  if (product.listingType !== 'auction') throw new AppError('Product must be an auction listing', HTTP_STATUS.BAD_REQUEST);
+  if (product.status !== 'active') throw new AppError('Product must be active to start an auction', HTTP_STATUS.BAD_REQUEST);
+
+  const callId = `auction_${seller._id}_${Date.now()}`;
+  const client = getStreamClient();
+
+  await upsertStreamUser(seller._id, seller.displayName || seller.username, seller.avatarUrl);
+
+  const call = client.video.call('livestream', callId);
+  await call.getOrCreate({
+    data: {
+      created_by_id: String(seller._id),
+      custom: { title: data.title, sellerId: String(seller._id), isAuction: true },
+      settings_override: { broadcasting: { enabled: true } },
+    },
+  });
+
+  const stream = await Stream.create({
+    sellerId: seller._id,
+    title: data.title,
+    description: data.description,
+    categoryId: data.categoryId ?? null,
+    thumbnailUrl: data.thumbnailUrl ?? null,
+    tags: data.tags ?? [],
+    chatEnabled: data.chatEnabled ?? true,
+    callId,
+    callType: 'livestream',
+    status: STREAM_STATUS.LIVE,
+    startedAt: new Date(),
+    pinnedProducts: [product._id],
+  });
+
+  product.streamId = stream._id;
+  await product.save();
+
+  const token = generateStreamToken(seller._id, 'host');
+
+  return {
+    token,
+    callId: stream.callId,
+    callType: stream.callType,
+    apiKey: process.env.STREAM_API_KEY,
+    stream: stream.toObject(),
+    role: 'host',
+  };
+};
+
 // ── Cancel (soft delete before going live) ────────────────────────────────────
 
 const cancelStream = async (sellerId, streamId) => {
@@ -176,4 +252,4 @@ const cancelStream = async (sellerId, streamId) => {
   return stream;
 };
 
-module.exports = { createStream, startStream, endStream, joinStream, getPublicStreams, getSellerStreams, getStream, cancelStream };
+module.exports = { createStream, createAuctionStream, updateStream, startStream, endStream, joinStream, getPublicStreams, getSellerStreams, getStream, cancelStream };

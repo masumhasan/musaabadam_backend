@@ -11,9 +11,8 @@ const startServer = async () => {
 
   const server = http.createServer(app);
 
-  // Socket.IO will be attached here when socket modules are built
-  // const { initSocket } = require('./socket');
-  // initSocket(server);
+  const { initSocket } = require('./socket');
+  initSocket(server);
 
   server.listen(PORT, () => {
     logger.info(`BidsRush API running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);

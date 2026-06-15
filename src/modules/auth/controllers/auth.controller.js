@@ -105,4 +105,42 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
-module.exports = { register, verifyEmail, resendVerification, login, refreshToken, logout, forgotPassword, verifyResetOtp, resetPassword };
+const initiateEmailChange = async (req, res, next) => {
+  try {
+    const result = await authService.initiateEmailChange(req.user._id, req.body.newEmail);
+    return success(res, null, result.message);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const verifyEmailChange = async (req, res, next) => {
+  try {
+    const user = await authService.verifyEmailChange(req.user._id, req.body.otp);
+    return success(res, { user }, 'Email updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const initiatePasswordChange = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const result = await authService.initiatePasswordChange(req.user._id, currentPassword, newPassword);
+    return success(res, null, result.message);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const verifyPasswordChange = async (req, res, next) => {
+  try {
+    const { otp, newPassword } = req.body;
+    const result = await authService.verifyPasswordChange(req.user._id, otp, newPassword);
+    return success(res, null, result.message);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { register, verifyEmail, resendVerification, login, refreshToken, logout, forgotPassword, verifyResetOtp, resetPassword, initiateEmailChange, verifyEmailChange, initiatePasswordChange, verifyPasswordChange };

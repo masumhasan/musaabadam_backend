@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../../../models/User');
 const RefreshToken = require('../../../models/RefreshToken');
 const { generateAccessToken, generateRefreshToken, generateEmailToken, generateResetSessionToken, verifyToken } = require('../../../utils/jwtService');
-const { sendVerificationEmail, sendPasswordResetOtpEmail } = require('../../../utils/emailService');
+const { sendVerificationEmail, sendPasswordResetOtpEmail, sendChangeEmailOtpEmail, sendChangePasswordOtpEmail } = require('../../../utils/emailService');
 const { ROLES, PERMISSIONS } = require('../../../config/constants');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS } = require('../../../config/constants');
@@ -226,6 +226,94 @@ const resetPassword = async (resetToken, newPassword) => {
   return { message: 'Password reset successfully' };
 };
 
+// ─── Change Email (authenticated) ────────────────────────────────────────────
+
+const initiateEmailChange = async (userId, newEmail) => {
+  const normalized = newEmail.toLowerCase().trim();
+
+  if (await User.existsByEmail(normalized)) {
+    throw new AppError('This email is already in use', HTTP_STATUS.CONFLICT);
+  }
+
+  const user = await User.findById(userId).select('+emailChangeOtp +emailChangeOtpExpiry +emailChangePending');
+  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  user.emailChangePending = normalized;
+  user.emailChangeOtp = hashToken(otp);
+  user.emailChangeOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  await user.save();
+
+  await sendChangeEmailOtpEmail(normalized, otp);
+  return { message: 'A verification code was sent to your new email address' };
+};
+
+const verifyEmailChange = async (userId, otp) => {
+  const user = await User.findById(userId).select('+emailChangeOtp +emailChangeOtpExpiry +emailChangePending');
+  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+
+  const invalid = !user.emailChangeOtp || !user.emailChangeOtpExpiry || !user.emailChangePending;
+  if (invalid) throw new AppError('No pending email change. Please start over.', HTTP_STATUS.BAD_REQUEST);
+
+  if (user.emailChangeOtpExpiry < new Date()) {
+    throw new AppError('Code has expired. Please request a new one.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (hashToken(otp) !== user.emailChangeOtp) {
+    throw new AppError('Incorrect code. Please try again.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  user.email = user.emailChangePending;
+  user.isEmailVerified = true;
+  user.emailChangePending = undefined;
+  user.emailChangeOtp = undefined;
+  user.emailChangeOtpExpiry = undefined;
+  await user.save();
+
+  return user.toPrivateProfile();
+};
+
+// ─── Change Password (authenticated) ─────────────────────────────────────────
+
+const initiatePasswordChange = async (userId, currentPassword, newPassword) => {
+  const user = await User.findById(userId).select('+passwordHash +passwordChangeOtp +passwordChangeOtpExpiry');
+  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+
+  const valid = await user.comparePassword(currentPassword);
+  if (!valid) throw new AppError('Current password is incorrect', HTTP_STATUS.UNAUTHORIZED);
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  user.passwordChangeOtp = hashToken(otp);
+  user.passwordChangeOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  await user.save();
+
+  await sendChangePasswordOtpEmail(user.email, otp);
+  return { message: 'A verification code was sent to your email address' };
+};
+
+const verifyPasswordChange = async (userId, otp, newPassword) => {
+  const user = await User.findById(userId).select('+passwordChangeOtp +passwordChangeOtpExpiry');
+  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+
+  const invalid = !user.passwordChangeOtp || !user.passwordChangeOtpExpiry;
+  if (invalid) throw new AppError('No pending password change. Please start over.', HTTP_STATUS.BAD_REQUEST);
+
+  if (user.passwordChangeOtpExpiry < new Date()) {
+    throw new AppError('Code has expired. Please request a new one.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (hashToken(otp) !== user.passwordChangeOtp) {
+    throw new AppError('Incorrect code. Please try again.', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  user.passwordChangeOtp = undefined;
+  user.passwordChangeOtpExpiry = undefined;
+  await user.save();
+
+  return { message: 'Password changed successfully' };
+};
+
 module.exports = {
   register,
   verifyEmail,
@@ -236,4 +324,8 @@ module.exports = {
   forgotPassword,
   verifyResetOtp,
   resetPassword,
+  initiateEmailChange,
+  verifyEmailChange,
+  initiatePasswordChange,
+  verifyPasswordChange,
 };

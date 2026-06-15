@@ -36,16 +36,27 @@ router.put('/profile', [
 
 // ─── Addresses ────────────────────────────────────────────────────────────────
 
-router.post('/addresses', [
+const addressBodyValidators = [
+  body('type').optional().isIn(['shipping', 'pickup']).withMessage('type must be shipping or pickup'),
+  body('label').optional().trim().isLength({ max: 50 }),
   body('fullName').trim().notEmpty().withMessage('Full name is required'),
   body('line1').trim().notEmpty().withMessage('Address line 1 is required'),
+  body('line2').optional().trim(),
   body('city').trim().notEmpty().withMessage('City is required'),
+  body('state').optional().trim(),
   body('postalCode').trim().notEmpty().withMessage('Postal code is required'),
   body('country').trim().notEmpty().withMessage('Country is required'),
-], validate, userController.addAddress);
+  body('phone').optional().trim(),
+  body('isDefault').optional().isBoolean(),
+];
+
+router.get('/addresses', userController.getAddresses);
+
+router.post('/addresses', addressBodyValidators, validate, userController.addAddress);
 
 router.put('/addresses/:addressId', [
   param('addressId').isMongoId().withMessage('Invalid address ID'),
+  ...addressBodyValidators,
 ], validate, userController.updateAddress);
 
 router.delete('/addresses/:addressId', [

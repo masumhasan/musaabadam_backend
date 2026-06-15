@@ -26,12 +26,21 @@ const updateProfile = async (userId, updates) => {
   return user.toPrivateProfile();
 };
 
+const getAddresses = async (userId) => {
+  const user = await User.findById(userId).select('addresses');
+  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+  return user.addresses;
+};
+
 const addAddress = async (userId, addressData) => {
   const user = await User.findById(userId);
   if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
 
+  const type = addressData.type || 'shipping';
   if (addressData.isDefault) {
-    user.addresses.forEach((a) => { a.isDefault = false; });
+    user.addresses
+      .filter((a) => a.type === type)
+      .forEach((a) => { a.isDefault = false; });
   }
   user.addresses.push(addressData);
   await user.save();
@@ -45,8 +54,11 @@ const updateAddress = async (userId, addressId, addressData) => {
   const addr = user.addresses.id(addressId);
   if (!addr) throw new AppError('Address not found', HTTP_STATUS.NOT_FOUND);
 
+  const type = addressData.type || addr.type;
   if (addressData.isDefault) {
-    user.addresses.forEach((a) => { a.isDefault = false; });
+    user.addresses
+      .filter((a) => a.type === type && a._id.toString() !== addressId)
+      .forEach((a) => { a.isDefault = false; });
   }
   Object.assign(addr, addressData);
   await user.save();
@@ -122,6 +134,7 @@ const applyAsSeller = async (userId, data) => {
 module.exports = {
   getProfile,
   updateProfile,
+  getAddresses,
   addAddress,
   updateAddress,
   deleteAddress,

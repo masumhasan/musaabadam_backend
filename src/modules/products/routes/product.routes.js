@@ -1,4 +1,5 @@
 const express = require('express');
+const { body } = require('express-validator');
 const controller = require('../controllers/product.controller');
 const { authenticateUser, requirePermission } = require('../../../middleware/auth');
 const validate = require('../../../middleware/validate');
@@ -35,5 +36,15 @@ router.delete('/:productId', canManageProducts, productIdParam, validate, contro
 // ── Status transitions ────────────────────────────────────────────────────────
 router.patch('/:productId/publish', canManageProducts, productIdParam, validate, controller.publish);
 router.patch('/:productId/deactivate', canManageProducts, productIdParam, validate, controller.deactivate);
+
+// ── Bidding ───────────────────────────────────────────────────────────────────
+router.post(
+  '/:productId/bid',
+  requirePermission('bid'),
+  ...productIdParam,
+  body('amount').isFloat({ gt: 0 }).withMessage('Bid amount must be a positive number'),
+  validate,
+  controller.bid
+);
 
 module.exports = router;

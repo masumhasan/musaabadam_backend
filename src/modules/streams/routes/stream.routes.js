@@ -6,6 +6,8 @@ const ctrl = require('../controllers/stream.controller');
 const {
   streamIdParam,
   createStreamValidator,
+  createAuctionValidator,
+  updateStreamValidator,
   listStreamsValidator,
   sellerStreamsValidator,
 } = require('../validators/stream.validators');
@@ -18,6 +20,12 @@ router.get('/me/streams', authenticateUser, isSeller, ...sellerStreamsValidator,
 
 // Seller-only: create a stream
 router.post('/', authenticateUser, isSeller, ...createStreamValidator, validate, ctrl.create);
+
+// Seller-only: start an auction stream immediately (pinned product)
+router.post('/auction', authenticateUser, isSeller, ...createAuctionValidator, validate, ctrl.createAuction);
+
+// Seller-only: edit a scheduled show
+router.patch('/:streamId', authenticateUser, isSeller, ...updateStreamValidator, validate, ctrl.update);
 
 // Seller-only: lifecycle mutations
 router.patch('/:streamId/start', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.start);

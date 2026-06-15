@@ -2,6 +2,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const controller = require('../controllers/auth.controller');
 const validate = require('../../../middleware/validate');
+const { authenticateUser } = require('../../../middleware/auth');
 const {
   registerValidator,
   loginValidator,
@@ -11,6 +12,10 @@ const {
   refreshTokenValidator,
   resendVerificationValidator,
   verifyEmailQueryValidator,
+  initiateEmailChangeValidator,
+  verifyEmailChangeValidator,
+  initiatePasswordChangeValidator,
+  verifyPasswordChangeValidator,
 } = require('../validators/auth.validators');
 
 const router = express.Router();
@@ -37,5 +42,11 @@ router.post('/logout', controller.logout);
 router.post('/forgot-password', emailLimiter, forgotPasswordValidator, validate, controller.forgotPassword);
 router.post('/verify-reset-otp', authLimiter, verifyResetOtpValidator, validate, controller.verifyResetOtp);
 router.post('/reset-password', resetPasswordValidator, validate, controller.resetPassword);
+
+// ── Change email / password (requires active session) ─────────────────────────
+router.post('/change-email/initiate', authenticateUser, emailLimiter, initiateEmailChangeValidator, validate, controller.initiateEmailChange);
+router.post('/change-email/verify', authenticateUser, authLimiter, verifyEmailChangeValidator, validate, controller.verifyEmailChange);
+router.post('/change-password/initiate', authenticateUser, emailLimiter, initiatePasswordChangeValidator, validate, controller.initiatePasswordChange);
+router.post('/change-password/verify', authenticateUser, authLimiter, verifyPasswordChangeValidator, validate, controller.verifyPasswordChange);
 
 module.exports = router;

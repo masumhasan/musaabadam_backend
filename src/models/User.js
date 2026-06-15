@@ -9,6 +9,7 @@ const BCRYPT_ROUNDS = 12;
 const AddressSchema = new mongoose.Schema(
   {
     label: { type: String, trim: true, default: 'Home' },
+    type: { type: String, enum: ['shipping', 'pickup'], default: 'shipping' },
     fullName: { type: String, required: true, trim: true },
     line1: { type: String, required: true, trim: true },
     line2: { type: String, trim: true },
@@ -194,6 +195,15 @@ const UserSchema = new mongoose.Schema(
     // ── Password Reset OTP ────────────────────────────────────────────────────
     passwordResetOtp: { type: String, select: false },
     passwordResetOtpExpiry: { type: Date, select: false },
+
+    // ── Change Email OTP (while logged in) ───────────────────────────────────
+    emailChangePending: { type: String, select: false },
+    emailChangeOtp: { type: String, select: false },
+    emailChangeOtpExpiry: { type: Date, select: false },
+
+    // ── Change Password OTP (while logged in) ────────────────────────────────
+    passwordChangeOtp: { type: String, select: false },
+    passwordChangeOtpExpiry: { type: Date, select: false },
 
     // ── Timestamps ────────────────────────────────────────────────────────────
     lastLoginAt: { type: Date },

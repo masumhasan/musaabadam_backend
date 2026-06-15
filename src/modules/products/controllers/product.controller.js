@@ -74,4 +74,13 @@ const listCategories = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { create, update, remove, getOne, list, inventory, publish, deactivate, listCategories };
+const bid = async (req, res, next) => {
+  try {
+    const result = await productService.placeBid(req.user._id, req.params.productId, Number(req.body.amount));
+    return success(res, result, 'Bid placed');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { create, update, remove, getOne, list, inventory, publish, deactivate, listCategories, bid };

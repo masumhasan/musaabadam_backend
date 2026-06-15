@@ -30,4 +30,27 @@ const sellerStreamsValidator = [
   query('limit').optional().isInt({ min: 1, max: 50 }).toInt(),
 ];
 
-module.exports = { streamIdParam, createStreamValidator, listStreamsValidator, sellerStreamsValidator };
+const updateStreamValidator = [
+  ...streamIdParam,
+  body('title').optional().trim().notEmpty().withMessage('Title cannot be empty').isLength({ max: 120 }),
+  body('description').optional({ values: 'falsy' }).trim().isLength({ max: 1000 }),
+  body('categoryId').optional({ values: 'falsy' }).isMongoId().withMessage('Invalid category ID'),
+  body('thumbnailUrl').optional({ values: 'falsy' }).isURL().withMessage('Invalid thumbnail URL'),
+  body('tags').optional().isArray({ max: 10 }).withMessage('Max 10 tags'),
+  body('tags.*').optional().isString().trim().isLength({ min: 1, max: 30 }),
+  body('scheduledAt').optional({ values: 'falsy' }).isISO8601().withMessage('scheduledAt must be ISO 8601').toDate(),
+  body('chatEnabled').optional().isBoolean().toBoolean(),
+];
+
+const createAuctionValidator = [
+  body('productId').isMongoId().withMessage('productId must be a valid Mongo ID'),
+  body('title').trim().notEmpty().withMessage('Title is required').isLength({ max: 120 }),
+  body('description').optional({ values: 'falsy' }).trim().isLength({ max: 1000 }),
+  body('categoryId').optional({ values: 'falsy' }).isMongoId().withMessage('Invalid category ID'),
+  body('thumbnailUrl').optional({ values: 'falsy' }).isURL().withMessage('Invalid thumbnail URL'),
+  body('tags').optional().isArray({ max: 10 }).withMessage('Max 10 tags'),
+  body('tags.*').optional().isString().trim().isLength({ min: 1, max: 30 }),
+  body('chatEnabled').optional().isBoolean().toBoolean(),
+];
+
+module.exports = { streamIdParam, createStreamValidator, createAuctionValidator, updateStreamValidator, listStreamsValidator, sellerStreamsValidator };

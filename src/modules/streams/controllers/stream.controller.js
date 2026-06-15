@@ -1,10 +1,18 @@
 const { HTTP_STATUS } = require('../../../config/constants');
+
 const svc = require('../services/stream.service');
 
 const create = async (req, res, next) => {
   try {
     const stream = await svc.createStream(req.user, req.body);
     res.status(HTTP_STATUS.CREATED).json({ success: true, data: { stream } });
+  } catch (err) { next(err); }
+};
+
+const update = async (req, res, next) => {
+  try {
+    const stream = await svc.updateStream(req.user._id, req.params.streamId, req.body);
+    res.json({ success: true, data: { stream } });
   } catch (err) { next(err); }
 };
 
@@ -57,4 +65,11 @@ const detail = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { create, start, end, cancel, join, list, myStreams, detail };
+const createAuction = async (req, res, next) => {
+  try {
+    const result = await svc.createAuctionStream(req.user, req.body);
+    res.status(HTTP_STATUS.CREATED).json({ success: true, data: result });
+  } catch (err) { next(err); }
+};
+
+module.exports = { create, createAuction, update, start, end, cancel, join, list, myStreams, detail };

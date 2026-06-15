@@ -78,6 +78,9 @@ app.use('/api/v1/categories', require('./modules/products/routes/category.routes
 app.use('/api/v1/settings', require('./modules/settings/routes/settings.routes'));
 app.use('/api/v1/admin', require('./modules/admin/routes/admin.routes'));
 app.use('/api/v1/streams', require('./modules/streams/routes/stream.routes'));
+app.use('/api/v1/uploads', require('./modules/uploads/routes/upload.routes'));
+app.use('/api/v1/orders', require('./modules/orders/routes/order.routes'));
+app.use('/api/v1/analytics', require('./modules/analytics/routes/analytics.routes'));
 
 // ─── 404 & Error Handling ─────────────────────────────────────────────────────
 

@@ -58,6 +58,30 @@ const verifyEmailQueryValidator = [
   query('token').trim().notEmpty().withMessage('Verification token is required'),
 ];
 
+const otpField = body('otp')
+  .trim()
+  .matches(/^\d{6}$/)
+  .withMessage('OTP must be a 6-digit number');
+
+const newPasswordField = body('newPassword')
+  .isLength({ min: 8 })
+  .withMessage('Password must be at least 8 characters')
+  .matches(/[A-Z]/).withMessage('Password must contain an uppercase letter')
+  .matches(/[0-9]/).withMessage('Password must contain a number');
+
+const initiateEmailChangeValidator = [
+  body('newEmail').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+];
+
+const verifyEmailChangeValidator = [otpField];
+
+const initiatePasswordChangeValidator = [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  newPasswordField,
+];
+
+const verifyPasswordChangeValidator = [otpField, newPasswordField];
+
 module.exports = {
   registerValidator,
   loginValidator,
@@ -67,4 +91,8 @@ module.exports = {
   refreshTokenValidator,
   resendVerificationValidator,
   verifyEmailQueryValidator,
+  initiateEmailChangeValidator,
+  verifyEmailChangeValidator,
+  initiatePasswordChangeValidator,
+  verifyPasswordChangeValidator,
 };

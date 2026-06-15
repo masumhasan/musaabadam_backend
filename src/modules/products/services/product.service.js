@@ -143,7 +143,33 @@ const getPublicProducts = async (filters = {}, pagination = {}) => {
   return { products, pagination: { total, page: safePage, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
 };
 
+const placeBid = async (bidderId, productId, bidAmount) => {
+  const product = await Product.findOne({ _id: productId, deletedAt: null }).select('+highestBidderId');
+  if (!product) throw new AppError('Product not found', HTTP_STATUS.NOT_FOUND);
+  if (product.listingType !== LISTING_TYPES.AUCTION) throw new AppError('Product is not an auction', HTTP_STATUS.BAD_REQUEST);
+  if (product.status !== PRODUCT_STATUS.ACTIVE) throw new AppError('Auction is not active', HTTP_STATUS.BAD_REQUEST);
+  if (product.auctionEndsAt && product.auctionEndsAt < new Date()) {
+    throw new AppError('Auction has ended', HTTP_STATUS.CONFLICT);
+  }
+  if (product.sellerId.equals(bidderId)) throw new AppError('Cannot bid on your own listing', HTTP_STATUS.FORBIDDEN);
+
+  const minBid = product.currentHighBid > 0 ? product.currentHighBid + 0.01 : (product.startingPrice ?? 0);
+  if (bidAmount < minBid) {
+    throw new AppError(`Bid must be at least ${minBid.toFixed(2)}`, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  product.currentHighBid = bidAmount;
+  product.highestBidderId = bidderId;
+  await product.save();
+
+  return {
+    productId: product._id,
+    currentHighBid: product.currentHighBid,
+    auctionEndsAt: product.auctionEndsAt,
+  };
+};
+
 module.exports = {
   createProduct, updateProduct, deleteProduct, publishProduct, deactivateProduct,
-  getProduct, getSellerInventory, getPublicProducts,
+  getProduct, getSellerInventory, getPublicProducts, placeBid,
 };
