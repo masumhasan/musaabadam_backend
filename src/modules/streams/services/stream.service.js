@@ -1,9 +1,22 @@
 const Stream = require('../../../models/Stream');
-const { STREAM_STATUS } = require('../../../models/Stream');
+const { STREAM_STATUS, RECORDING_STATUS } = require('../../../models/Stream');
 const Product = require('../../../models/Product');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS } = require('../../../config/constants');
-const { getStreamClient, generateStreamToken, upsertStreamUser } = require('../../../utils/streamClient');
+const {
+  getStreamClient,
+  generateStreamToken,
+  upsertStreamUser,
+  startCallRecording,
+  stopCallRecording,
+} = require('../../../utils/streamClient');
+const { uploadRemoteFileToS3, deleteFile } = require('../../uploads/services/upload.service');
+const logger = require('../../../utils/logger');
+
+// Recording is enabled on every show so the live stream can be replayed later.
+// `available` lets us start/stop recording explicitly around the live window.
+// GetStream requires `quality` whenever recording is enabled and not audio-only.
+const RECORDING_SETTINGS = { mode: 'available', audio_only: false, quality: '1080p' };
 
 const PUBLIC_SELECT = '-deletedAt -cohostIds';
 
@@ -28,6 +41,7 @@ const createStream = async (seller, data) => {
       custom: { title: data.title, sellerId: String(seller._id) },
       settings_override: {
         broadcasting: { enabled: true },
+        recording: RECORDING_SETTINGS,
       },
     },
   });
@@ -60,6 +74,10 @@ const startStream = async (sellerId, streamId) => {
 
   stream.status = STREAM_STATUS.LIVE;
   stream.startedAt = new Date();
+  // Begin recording so this show can be replayed once it ends.
+  stream.recordingStatus = (await startCallRecording(stream.callType, stream.callId))
+    ? RECORDING_STATUS.PROCESSING
+    : RECORDING_STATUS.NONE;
   await stream.save();
 
   return stream;
@@ -73,6 +91,13 @@ const endStream = async (sellerId, streamId) => {
   assertOwner(stream, sellerId);
 
   if (stream.status === STREAM_STATUS.ENDED) throw new AppError('Stream already ended', HTTP_STATUS.CONFLICT);
+
+  // Stop recording first so GetStream finalizes the file, then end the call.
+  // The finished recording arrives asynchronously via the `call.recording_ready`
+  // webhook, which copies it into S3 and flips recordingStatus → ready.
+  if (stream.recordingStatus === RECORDING_STATUS.PROCESSING) {
+    await stopCallRecording(stream.callType, stream.callId);
+  }
 
   const client = getStreamClient();
   try {
@@ -205,9 +230,12 @@ const createAuctionStream = async (seller, data) => {
     data: {
       created_by_id: String(seller._id),
       custom: { title: data.title, sellerId: String(seller._id), isAuction: true },
-      settings_override: { broadcasting: { enabled: true } },
+      settings_override: { broadcasting: { enabled: true }, recording: RECORDING_SETTINGS },
     },
   });
+
+  // Auction shows start live immediately — begin recording right away.
+  const recordingStarted = await startCallRecording('livestream', callId);
 
   const stream = await Stream.create({
     sellerId: seller._id,
@@ -222,6 +250,7 @@ const createAuctionStream = async (seller, data) => {
     status: STREAM_STATUS.LIVE,
     startedAt: new Date(),
     pinnedProducts: [product._id],
+    recordingStatus: recordingStarted ? RECORDING_STATUS.PROCESSING : RECORDING_STATUS.NONE,
   });
 
   product.streamId = stream._id;
@@ -239,6 +268,124 @@ const createAuctionStream = async (seller, data) => {
   };
 };
 
+// ── Replays (past shows with a ready recording) ───────────────────────────────
+
+const getReplays = async ({ categoryId, sellerId, page = 1, limit = 20 }) => {
+  const query = {
+    deletedAt: null,
+    status: STREAM_STATUS.ENDED,
+    recordingStatus: RECORDING_STATUS.READY,
+  };
+  if (categoryId) query.categoryId = categoryId;
+  if (sellerId) query.sellerId = sellerId;
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const [streams, total] = await Promise.all([
+    Stream.find(query)
+      .select(PUBLIC_SELECT)
+      .populate('sellerId', 'username displayName avatarUrl isSellerApproved')
+      .sort({ endedAt: -1 })
+      .skip(skip)
+      .limit(Number(limit)),
+    Stream.countDocuments(query),
+  ]);
+
+  return { streams, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) };
+};
+
+// Resolve the replay (recording) for a single ended show.
+const getReplay = async (streamId) => {
+  const stream = await Stream.findOne({ _id: streamId, deletedAt: null })
+    .select(PUBLIC_SELECT)
+    .populate('sellerId', 'username displayName avatarUrl isSellerApproved')
+    .populate('categoryId', 'name slug');
+  if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
+
+  if (stream.recordingStatus !== RECORDING_STATUS.READY || !stream.recordingUrl) {
+    const message =
+      stream.recordingStatus === RECORDING_STATUS.PROCESSING
+        ? 'Replay is still being processed. Please check back shortly.'
+        : 'No replay is available for this show';
+    throw new AppError(message, HTTP_STATUS.NOT_FOUND);
+  }
+
+  return {
+    streamId: stream._id,
+    recordingUrl: stream.recordingUrl,
+    recordingStatus: stream.recordingStatus,
+    recordingDurationSeconds: stream.recordingDurationSeconds ?? null,
+    stream: stream.toObject(),
+  };
+};
+
+// ── Recording webhook ingestion ───────────────────────────────────────────────
+// Called from the GetStream `call.recording_ready` webhook. Copies the rendered
+// recording into our own S3 bucket (streams/recordings/<streamId>/) and marks the
+// show replayable. GetStream's hosted URL is temporary, so we must persist a copy.
+
+const ingestRecording = async (callId, recording) => {
+  const stream = await Stream.findOne({ callId, deletedAt: null });
+  if (!stream) {
+    logger.warn(`recording_ready: no stream found for callId ${callId}`);
+    return null;
+  }
+
+  // Already ingested (webhooks can be delivered more than once) — ignore.
+  if (stream.recordingStatus === RECORDING_STATUS.READY && stream.recordingUrl) {
+    return stream;
+  }
+
+  const sourceUrl = recording?.url;
+  if (!sourceUrl) {
+    logger.warn(`recording_ready: missing recording url for callId ${callId}`);
+    stream.recordingStatus = RECORDING_STATUS.FAILED;
+    await stream.save();
+    return stream;
+  }
+
+  try {
+    const { key, publicUrl } = await uploadRemoteFileToS3({
+      sourceUrl,
+      folder: 'stream_recording',
+      keyPrefix: String(stream._id),
+    });
+
+    // Replace any prior recording file (e.g. a re-recorded session).
+    if (stream.recordingKey && stream.recordingKey !== key) {
+      await deleteFile(stream.recordingKey).catch(() => {});
+    }
+
+    stream.recordingKey = key;
+    stream.recordingUrl = publicUrl;
+    stream.isRecorded = true;
+    stream.recordingStatus = RECORDING_STATUS.READY;
+    if (recording.start_time && recording.end_time) {
+      stream.recordingDurationSeconds = Math.max(
+        0,
+        Math.floor((new Date(recording.end_time) - new Date(recording.start_time)) / 1000)
+      );
+    }
+    await stream.save();
+    logger.info(`recording_ready: stored replay for stream ${stream._id} at ${key}`);
+    return stream;
+  } catch (err) {
+    logger.error(`recording_ready: failed to store recording for ${stream._id}: ${err.message}`);
+    stream.recordingStatus = RECORDING_STATUS.FAILED;
+    await stream.save();
+    throw err;
+  }
+};
+
+const markRecordingFailed = async (callId) => {
+  const stream = await Stream.findOne({ callId, deletedAt: null });
+  if (!stream) return null;
+  if (stream.recordingStatus !== RECORDING_STATUS.READY) {
+    stream.recordingStatus = RECORDING_STATUS.FAILED;
+    await stream.save();
+  }
+  return stream;
+};
+
 // ── Cancel (soft delete before going live) ────────────────────────────────────
 
 const cancelStream = async (sellerId, streamId) => {
@@ -252,4 +399,19 @@ const cancelStream = async (sellerId, streamId) => {
   return stream;
 };
 
-module.exports = { createStream, createAuctionStream, updateStream, startStream, endStream, joinStream, getPublicStreams, getSellerStreams, getStream, cancelStream };
+module.exports = {
+  createStream,
+  createAuctionStream,
+  updateStream,
+  startStream,
+  endStream,
+  joinStream,
+  getPublicStreams,
+  getSellerStreams,
+  getStream,
+  getReplays,
+  getReplay,
+  ingestRecording,
+  markRecordingFailed,
+  cancelStream,
+};

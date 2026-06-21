@@ -9,6 +9,7 @@ const {
   createAuctionValidator,
   updateStreamValidator,
   listStreamsValidator,
+  listReplaysValidator,
   sellerStreamsValidator,
 } = require('../validators/stream.validators');
 
@@ -17,6 +18,9 @@ const isSeller = requireRole(ROLES.SELLER);
 
 // Seller-only: list own streams — declared before /:streamId to avoid param capture
 router.get('/me/streams', authenticateUser, isSeller, ...sellerStreamsValidator, validate, ctrl.myStreams);
+
+// Any authenticated user: browse past shows (replays) — before /:streamId
+router.get('/replays', authenticateUser, ...listReplaysValidator, validate, ctrl.listReplays);
 
 // Seller-only: create a stream
 router.post('/', authenticateUser, isSeller, ...createStreamValidator, validate, ctrl.create);
@@ -35,6 +39,7 @@ router.patch('/:streamId/cancel', authenticateUser, isSeller, ...streamIdParam, 
 // Any authenticated user: browse and join streams
 router.get('/', authenticateUser, ...listStreamsValidator, validate, ctrl.list);
 router.get('/:streamId', authenticateUser, ...streamIdParam, validate, ctrl.detail);
+router.get('/:streamId/replay', authenticateUser, ...streamIdParam, validate, ctrl.replay);
 router.post('/:streamId/join', authenticateUser, ...streamIdParam, validate, ctrl.join);
 
 module.exports = router;

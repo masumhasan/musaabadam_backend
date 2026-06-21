@@ -2,8 +2,8 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const User = require('../../../models/User');
 const RefreshToken = require('../../../models/RefreshToken');
-const { generateAccessToken, generateRefreshToken, generateEmailToken, generateResetSessionToken, verifyToken } = require('../../../utils/jwtService');
-const { sendVerificationEmail, sendPasswordResetOtpEmail, sendChangeEmailOtpEmail, sendChangePasswordOtpEmail } = require('../../../utils/emailService');
+const { generateAccessToken, generateRefreshToken, generateResetSessionToken } = require('../../../utils/jwtService');
+const { sendVerificationOtpEmail, sendPasswordResetOtpEmail, sendChangeEmailOtpEmail, sendChangePasswordOtpEmail } = require('../../../utils/emailService');
 const { ROLES, PERMISSIONS } = require('../../../config/constants');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS } = require('../../../config/constants');
@@ -57,44 +57,60 @@ const register = async ({ email, password, username, ipAddress }) => {
     permissions: [...PERMISSIONS.BUYER],
   });
 
-  const verificationToken = generateEmailToken({ sub: user._id.toString(), email: normalizedEmail });
-  await sendVerificationEmail(normalizedEmail, verificationToken);
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  user.emailVerifyOtp = hashToken(otp);
+  user.emailVerifyOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  await user.save();
+
+  await sendVerificationOtpEmail(normalizedEmail, otp);
 
   return { userId: user._id, email: normalizedEmail };
 };
 
-const verifyEmail = async (token) => {
-  let decoded;
-  try {
-    decoded = verifyToken(token);
-  } catch {
-    throw new AppError('Invalid or expired verification link', HTTP_STATUS.BAD_REQUEST);
+const verifyEmail = async (email, otp, { ipAddress, deviceInfo } = {}) => {
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findByEmail(normalizedEmail).select('+emailVerifyOtp +emailVerifyOtpExpiry');
+  if (!user) throw new AppError('No account found with this email', HTTP_STATUS.NOT_FOUND);
+  if (user.isEmailVerified) throw new AppError('Email is already verified. Please log in.', HTTP_STATUS.CONFLICT);
+
+  const invalid = !user.emailVerifyOtp || !user.emailVerifyOtpExpiry;
+  if (invalid) throw new AppError('No verification code found. Please request a new one.', HTTP_STATUS.BAD_REQUEST);
+
+  if (user.emailVerifyOtpExpiry < new Date()) {
+    throw new AppError('Code has expired. Please request a new one.', HTTP_STATUS.BAD_REQUEST);
   }
 
-  if (decoded.type !== 'email_verify') {
-    throw new AppError('Invalid token type', HTTP_STATUS.BAD_REQUEST);
+  if (hashToken(otp) !== user.emailVerifyOtp) {
+    throw new AppError('Incorrect code. Please try again.', HTTP_STATUS.BAD_REQUEST);
   }
-
-  const user = await User.findById(decoded.sub);
-  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
-  if (user.isEmailVerified) return { message: 'Email already verified' };
-  if (user.email !== decoded.email) throw new AppError('Token does not match this account', HTTP_STATUS.BAD_REQUEST);
 
   user.isEmailVerified = true;
+  user.emailVerifyOtp = undefined;
+  user.emailVerifyOtpExpiry = undefined;
+  user.lastLoginAt = new Date();
   await user.save();
 
-  return { message: 'Email verified successfully' };
+  // Issue tokens so the user is authenticated immediately after verification
+  const { accessToken, refreshToken } = buildTokenPair(user);
+  await saveRefreshToken(user._id, refreshToken, ipAddress, deviceInfo);
+
+  return { accessToken, refreshToken, user: user.toPrivateProfile() };
 };
 
 const resendVerification = async (email) => {
-  const user = await User.findByEmail(email);
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findByEmail(normalizedEmail).select('+emailVerifyOtp +emailVerifyOtpExpiry');
   if (!user) throw new AppError('No account found with this email', HTTP_STATUS.NOT_FOUND);
   if (user.isEmailVerified) throw new AppError('Email is already verified', HTTP_STATUS.CONFLICT);
 
-  const verificationToken = generateEmailToken({ sub: user._id.toString(), email: user.email });
-  await sendVerificationEmail(user.email, verificationToken);
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  user.emailVerifyOtp = hashToken(otp);
+  user.emailVerifyOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  await user.save();
 
-  return { message: 'Verification email sent' };
+  await sendVerificationOtpEmail(normalizedEmail, otp);
+
+  return { message: 'Verification code sent' };
 };
 
 const login = async ({ email, password, ipAddress, deviceInfo }) => {

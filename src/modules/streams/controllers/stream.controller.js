@@ -1,4 +1,6 @@
 const { HTTP_STATUS } = require('../../../config/constants');
+const { verifyWebhookSignature } = require('../../../utils/streamClient');
+const logger = require('../../../utils/logger');
 
 const svc = require('../services/stream.service');
 
@@ -72,4 +74,70 @@ const createAuction = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { create, createAuction, update, start, end, cancel, join, list, myStreams, detail };
+// ── Replays (past shows) ──────────────────────────────────────────────────────
+
+const listReplays = async (req, res, next) => {
+  try {
+    const result = await svc.getReplays(req.query);
+    res.json({ success: true, data: result });
+  } catch (err) { next(err); }
+};
+
+const replay = async (req, res, next) => {
+  try {
+    const result = await svc.getReplay(req.params.streamId);
+    res.json({ success: true, data: result });
+  } catch (err) { next(err); }
+};
+
+// ── GetStream webhook (recording lifecycle) ───────────────────────────────────
+// Mounted with a raw body parser so the signature can be verified. Always returns
+// 200 quickly for accepted events so GetStream does not retry needlessly.
+
+const getStreamWebhook = async (req, res) => {
+  const signature = req.get('x-signature');
+  const rawBody = req.body; // Buffer (express.raw)
+
+  if (!verifyWebhookSignature(rawBody, signature)) {
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, message: 'Invalid signature' });
+  }
+
+  let event;
+  try {
+    event = JSON.parse(rawBody.toString('utf8'));
+  } catch {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, message: 'Invalid payload' });
+  }
+
+  // call_cid looks like "livestream:stream_<sellerId>_<ts>" — the part after ':' is our callId.
+  const callId = event?.call_cid ? String(event.call_cid).split(':').slice(1).join(':') : null;
+
+  try {
+    if (event.type === 'call.recording_ready' && callId) {
+      await svc.ingestRecording(callId, event.call_recording || {});
+    } else if (event.type === 'call.recording_failed' && callId) {
+      await svc.markRecordingFailed(callId);
+    }
+  } catch (err) {
+    // Log but still 200 — GetStream retries are bounded and we've recorded the failure state.
+    logger.error(`getstream webhook (${event.type}) handling failed: ${err.message}`);
+  }
+
+  return res.json({ success: true });
+};
+
+module.exports = {
+  create,
+  createAuction,
+  update,
+  start,
+  end,
+  cancel,
+  join,
+  list,
+  myStreams,
+  detail,
+  listReplays,
+  replay,
+  getStreamWebhook,
+};

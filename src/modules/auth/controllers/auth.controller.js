@@ -20,11 +20,12 @@ const register = async (req, res, next) => {
 
 const verifyEmail = async (req, res, next) => {
   try {
-    const { token } = req.query;
-    const result = await authService.verifyEmail(token);
-    // Redirect to deep link or show success page
-    const deepLink = `bidsrush://account-verified`;
-    return res.redirect(302, deepLink);
+    const { email, otp } = req.body;
+    const result = await authService.verifyEmail(email, otp, {
+      ipAddress: req.ip,
+      deviceInfo: req.headers['user-agent'],
+    });
+    return success(res, result, 'Email verified successfully');
   } catch (err) {
     next(err);
   }

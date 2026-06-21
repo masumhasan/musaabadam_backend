@@ -35,6 +35,19 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
+// Mounted BEFORE the rate limiter (server-to-server traffic shouldn't be
+// throttled against the user-facing limit) and BEFORE the JSON body parser so
+// the raw payload is preserved for signature verification. GetStream posts
+// recording lifecycle events here.
+
+const streamController = require('./modules/streams/controllers/stream.controller');
+app.post(
+  '/api/v1/streams/webhooks/getstream',
+  express.raw({ type: '*/*', limit: '5mb' }),
+  streamController.getStreamWebhook
+);
+
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200,

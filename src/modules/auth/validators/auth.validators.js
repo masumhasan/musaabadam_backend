@@ -1,4 +1,4 @@
-const { body, query } = require('express-validator');
+const { body } = require('express-validator');
 
 const registerValidator = [
   body('email')
@@ -54,8 +54,9 @@ const resendVerificationValidator = [
   body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
 ];
 
-const verifyEmailQueryValidator = [
-  query('token').trim().notEmpty().withMessage('Verification token is required'),
+const verifyEmailOtpValidator = [
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('otp').trim().matches(/^\d{6}$/).withMessage('OTP must be a 6-digit number'),
 ];
 
 const otpField = body('otp')
@@ -90,7 +91,7 @@ module.exports = {
   resetPasswordValidator,
   refreshTokenValidator,
   resendVerificationValidator,
-  verifyEmailQueryValidator,
+  verifyEmailOtpValidator,
   initiateEmailChangeValidator,
   verifyEmailChangeValidator,
   initiatePasswordChangeValidator,

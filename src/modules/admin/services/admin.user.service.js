@@ -74,4 +74,19 @@ const activateUser = async (userId, adminId, meta) => {
   return user;
 };
 
-module.exports = { listUsers, getUser, suspendUser, banUser, activateUser };
+const deleteUser = async (userId, adminId, meta) => {
+  const user = await User.findOne({ _id: userId, deletedAt: null });
+  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+
+  // Anonymize unique fields so their values are freed for re-registration.
+  // The AdminLog entry retains the audit trail via targetId.
+  user.email = `deleted_${userId}@deleted.invalid`;
+  user.username = `deleted_${userId}`;
+  user.deletedAt = new Date();
+  user.isActive = false;
+  await user.save();
+
+  await AdminLog.create({ adminId, action: 'DELETE_USER', targetId: userId, targetModel: 'User', ...meta });
+};
+
+module.exports = { listUsers, getUser, suspendUser, banUser, activateUser, deleteUser };

@@ -30,6 +30,13 @@ const sellerStreamsValidator = [
   query('limit').optional().isInt({ min: 1, max: 50 }).toInt(),
 ];
 
+const listReplaysValidator = [
+  query('categoryId').optional({ values: 'falsy' }).isMongoId().withMessage('Invalid category ID'),
+  query('sellerId').optional({ values: 'falsy' }).isMongoId().withMessage('Invalid seller ID'),
+  query('page').optional().isInt({ min: 1 }).toInt(),
+  query('limit').optional().isInt({ min: 1, max: 50 }).toInt(),
+];
+
 const updateStreamValidator = [
   ...streamIdParam,
   body('title').optional().trim().notEmpty().withMessage('Title cannot be empty').isLength({ max: 120 }),
@@ -53,4 +60,4 @@ const createAuctionValidator = [
   body('chatEnabled').optional().isBoolean().toBoolean(),
 ];
 
-module.exports = { streamIdParam, createStreamValidator, createAuctionValidator, updateStreamValidator, listStreamsValidator, sellerStreamsValidator };
+module.exports = { streamIdParam, createStreamValidator, createAuctionValidator, updateStreamValidator, listStreamsValidator, listReplaysValidator, sellerStreamsValidator };

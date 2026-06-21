@@ -11,7 +11,7 @@ const {
   resetPasswordValidator,
   refreshTokenValidator,
   resendVerificationValidator,
-  verifyEmailQueryValidator,
+  verifyEmailOtpValidator,
   initiateEmailChangeValidator,
   verifyEmailChangeValidator,
   initiatePasswordChangeValidator,
@@ -34,7 +34,7 @@ const emailLimiter = rateLimit({
 });
 
 router.post('/register', authLimiter, registerValidator, validate, controller.register);
-router.get('/verify-email', verifyEmailQueryValidator, validate, controller.verifyEmail);
+router.post('/verify-email', authLimiter, verifyEmailOtpValidator, validate, controller.verifyEmail);
 router.post('/resend-verification', emailLimiter, resendVerificationValidator, validate, controller.resendVerification);
 router.post('/login', authLimiter, loginValidator, validate, controller.login);
 router.post('/refresh-token', refreshTokenValidator, validate, controller.refreshToken);

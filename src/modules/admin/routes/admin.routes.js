@@ -52,6 +52,7 @@ router.get('/users/:userId', canViewUsers, userIdParam, validate, userCtrl.getOn
 router.patch('/users/:userId/suspend', canSuspendUsers, suspendValidator, validate, userCtrl.suspend);
 router.patch('/users/:userId/ban', canSuspendUsers, banValidator, validate, userCtrl.ban);
 router.patch('/users/:userId/activate', canSuspendUsers, userIdParam, validate, userCtrl.activate);
+router.delete('/users/:userId', canSuspendUsers, userIdParam, validate, userCtrl.deleteUser);
 
 // ── Sellers ───────────────────────────────────────────────────────────────────
 const canApproveSellers = requireAdminPermission('APPROVE_SELLERS');

@@ -38,4 +38,11 @@ const activate = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { list, getOne, suspend, ban, activate };
+const deleteUser = async (req, res, next) => {
+  try {
+    await adminUserService.deleteUser(req.params.userId, req.admin._id, meta(req));
+    return success(res, null, 'User deleted');
+  } catch (err) { next(err); }
+};
+
+module.exports = { list, getOne, suspend, ban, activate, deleteUser };

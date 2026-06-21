@@ -31,4 +31,45 @@ const upsertStreamUser = async (userId, name, imageUrl) => {
   ]);
 };
 
-module.exports = { getStreamClient, generateStreamToken, upsertStreamUser };
+// ── Recording ────────────────────────────────────────────────────────────────
+// Recording must be enabled in the call settings (we pass `recording.mode`
+// when creating the call). These wrappers are best-effort — they never throw,
+// so a recording hiccup can't block the live-stream lifecycle.
+
+const startCallRecording = async (callType, callId) => {
+  try {
+    await getStreamClient().video.call(callType, callId).startRecording();
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
+
+const stopCallRecording = async (callType, callId) => {
+  try {
+    await getStreamClient().video.call(callType, callId).stopRecording();
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
+
+// Verify an incoming GetStream webhook using the x-signature header.
+// `rawBody` must be the unparsed request body (Buffer/string).
+const verifyWebhookSignature = (rawBody, signature) => {
+  if (!signature) return false;
+  try {
+    return getStreamClient().verifyWebhook(rawBody, signature);
+  } catch {
+    return false;
+  }
+};
+
+module.exports = {
+  getStreamClient,
+  generateStreamToken,
+  upsertStreamUser,
+  startCallRecording,
+  stopCallRecording,
+  verifyWebhookSignature,
+};

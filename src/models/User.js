@@ -192,6 +192,10 @@ const UserSchema = new mongoose.Schema(
     salesTaxExempt: { type: Boolean, default: false },
     taxExemptionDocUrl: { type: String },
 
+    // ── Email Verification OTP ────────────────────────────────────────────────
+    emailVerifyOtp: { type: String, select: false },
+    emailVerifyOtpExpiry: { type: Date, select: false },
+
     // ── Password Reset OTP ────────────────────────────────────────────────────
     passwordResetOtp: { type: String, select: false },
     passwordResetOtpExpiry: { type: Date, select: false },
@@ -340,12 +344,12 @@ UserSchema.statics.findByUsername = function (username) {
 };
 
 UserSchema.statics.existsByEmail = async function (email) {
-  const count = await this.countDocuments({ email: email.toLowerCase().trim() });
+  const count = await this.countDocuments({ email: email.toLowerCase().trim(), deletedAt: null });
   return count > 0;
 };
 
 UserSchema.statics.existsByUsername = async function (username) {
-  const count = await this.countDocuments({ username: username.trim() });
+  const count = await this.countDocuments({ username: username.trim(), deletedAt: null });
   return count > 0;
 };
 

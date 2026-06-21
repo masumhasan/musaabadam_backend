@@ -9,6 +9,14 @@ const STREAM_STATUS = Object.freeze({
   CANCELLED: 'cancelled',
 });
 
+// Lifecycle of the replay recording for a past show
+const RECORDING_STATUS = Object.freeze({
+  NONE: 'none',           // never recorded
+  PROCESSING: 'processing', // stream ended, GetStream is still rendering the file
+  READY: 'ready',         // recording stored in S3 and replayable
+  FAILED: 'failed',       // recording could not be produced / stored
+});
+
 const StreamSchema = new mongoose.Schema(
   {
     sellerId: { type: ObjectId, ref: 'User', required: true },
@@ -41,9 +49,16 @@ const StreamSchema = new mongoose.Schema(
     // Pinned products shown during stream
     pinnedProducts: [{ type: ObjectId, ref: 'Product' }],
 
-    // Recording
+    // Recording (replay) — stored in S3 once GetStream finishes rendering
     isRecorded: { type: Boolean, default: false },
-    recordingUrl: { type: String },
+    recordingUrl: { type: String },        // public S3 URL of the replay
+    recordingKey: { type: String },        // S3 object key (for deletion)
+    recordingStatus: {
+      type: String,
+      enum: Object.values(RECORDING_STATUS),
+      default: RECORDING_STATUS.NONE,
+    },
+    recordingDurationSeconds: { type: Number },
 
     // Settings
     chatEnabled: { type: Boolean, default: true },
@@ -73,6 +88,9 @@ StreamSchema.index({ status: 1, scheduledAt: 1 });
 StreamSchema.index({ status: 1, startedAt: -1 });
 StreamSchema.index({ deletedAt: 1 });
 StreamSchema.index({ tags: 1 });
+// Replay browsing: list ended shows whose recording is ready, newest first
+StreamSchema.index({ status: 1, recordingStatus: 1, endedAt: -1 });
 
 module.exports = mongoose.model('Stream', StreamSchema);
 module.exports.STREAM_STATUS = STREAM_STATUS;
+module.exports.RECORDING_STATUS = RECORDING_STATUS;
