@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Order = require('../../../models/Order');
 const Product = require('../../../models/Product');
 const { ORDER_STATUS } = require('../../../models/Order');
+const paymentService = require('../../payments/services/payment.service');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS } = require('../../../config/constants');
 
@@ -144,6 +145,16 @@ const updateOrderStatus = async (sellerId, orderId, { status, trackingNumber, tr
   }
 
   await order.save();
+
+  // Delivery releases the escrowed funds to the seller's available balance.
+  if (status === ORDER_STATUS.DELIVERED && order.isPaid) {
+    try {
+      await paymentService.releaseEscrow(order._id);
+    } catch (err) {
+      // Don't fail the status update if escrow release hiccups; it can be retried.
+    }
+  }
+
   return order;
 };
 
