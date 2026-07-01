@@ -37,6 +37,20 @@ router.delete('/:productId', canManageProducts, productIdParam, validate, contro
 router.patch('/:productId/publish', canManageProducts, productIdParam, validate, controller.publish);
 router.patch('/:productId/deactivate', canManageProducts, productIdParam, validate, controller.deactivate);
 
+// ── Flash sale ─────────────────────────────────────────────────────────────────
+router.post(
+  '/:productId/flash-sale',
+  canManageProducts,
+  ...productIdParam,
+  body('flashSalePrice').isFloat({ min: 0 }).withMessage('flashSalePrice must be >= 0'),
+  body('durationMinutes').optional({ values: 'falsy' }).isInt({ min: 1, max: 10080 }),
+  body('endsAt').optional({ values: 'falsy' }).isISO8601(),
+  body('stock').optional({ values: 'falsy' }).isInt({ min: 1 }),
+  validate,
+  controller.startFlashSale
+);
+router.delete('/:productId/flash-sale', canManageProducts, productIdParam, validate, controller.endFlashSale);
+
 // ── Bidding ───────────────────────────────────────────────────────────────────
 router.post(
   '/:productId/bid',

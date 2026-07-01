@@ -1,8 +1,17 @@
 const Message = require('../../../models/Message');
 const { MESSAGE_TYPE, MESSAGE_STATUS } = require('../../../models/Message');
 const Stream = require('../../../models/Stream');
+const User = require('../../../models/User');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS, ROLES } = require('../../../config/constants');
+
+// Extract @username tokens from message text and resolve them to user ids.
+const resolveMentions = async (text) => {
+  const handles = [...new Set((text.match(/@([a-zA-Z0-9_.-]{3,30})/g) || []).map((h) => h.slice(1)))];
+  if (handles.length === 0) return [];
+  const users = await User.find({ username: { $in: handles }, deletedAt: null }).select('_id');
+  return users.map((u) => u._id);
+};
 
 // Minimal profanity filter. Replace with an AI moderation provider later
 // (the "AI-based chat moderation" roadmap item).
@@ -26,7 +35,7 @@ const canModerate = (user, stream) => {
 
 // Persist + return a chat message after running moderation. `sender` is the
 // authenticated socket user document (or REST req.user).
-const createMessage = async ({ streamId, sender, text, type = MESSAGE_TYPE.MESSAGE }) => {
+const createMessage = async ({ streamId, sender, text, type = MESSAGE_TYPE.MESSAGE, replyTo = null }) => {
   const trimmed = (text || '').trim();
   if (type === MESSAGE_TYPE.MESSAGE && !trimmed) {
     throw new AppError('Message cannot be empty', HTTP_STATUS.BAD_REQUEST);
@@ -39,9 +48,17 @@ const createMessage = async ({ streamId, sender, text, type = MESSAGE_TYPE.MESSA
   if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
   if (stream.chatEnabled === false) throw new AppError('Chat is disabled for this stream', HTTP_STATUS.FORBIDDEN);
 
-  // bidirectional block check
   const flagged = containsProfanity(trimmed);
   const cleaned = flagged ? maskProfanity(trimmed) : trimmed;
+
+  // Validate the replied-to message belongs to this stream.
+  let replyRef = null;
+  if (replyTo) {
+    const parent = await Message.findOne({ _id: replyTo, streamId }).select('_id');
+    if (parent) replyRef = parent._id;
+  }
+
+  const mentions = await resolveMentions(trimmed);
 
   const message = await Message.create({
     streamId,
@@ -51,8 +68,11 @@ const createMessage = async ({ streamId, sender, text, type = MESSAGE_TYPE.MESSA
     senderName: sender.displayName || sender.username,
     senderAvatarUrl: sender.avatarUrl ?? null,
     status: MESSAGE_STATUS.VISIBLE,
+    replyTo: replyRef,
+    mentions,
   });
 
+  await message.populate('replyTo', 'text senderName');
   return serialize(message);
 };
 
@@ -60,7 +80,10 @@ const getHistory = async (streamId, { limit = 50, before } = {}) => {
   const query = { streamId, status: MESSAGE_STATUS.VISIBLE };
   if (before) query.createdAt = { $lt: new Date(before) };
 
-  const messages = await Message.find(query).sort({ createdAt: -1 }).limit(Number(limit));
+  const messages = await Message.find(query)
+    .sort({ createdAt: -1 })
+    .limit(Number(limit))
+    .populate('replyTo', 'text senderName');
   // Return chronological (oldest first) for rendering.
   return messages.reverse().map(serialize);
 };
@@ -90,6 +113,9 @@ const serialize = (m) => ({
     displayName: m.senderName,
     avatarUrl: m.senderAvatarUrl ?? null,
   },
+  replyTo: m.replyTo && m.replyTo._id
+    ? { id: String(m.replyTo._id), text: m.replyTo.text, senderName: m.replyTo.senderName }
+    : null,
   createdAt: m.createdAt,
 });
 

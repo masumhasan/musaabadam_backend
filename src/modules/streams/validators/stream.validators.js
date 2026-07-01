@@ -1,5 +1,7 @@
 const { body, param, query } = require('express-validator');
-const { STREAM_STATUS } = require('../../../models/Stream');
+const { STREAM_STATUS, STREAM_VISIBILITY } = require('../../../models/Stream');
+
+const visibilityValues = Object.values(STREAM_VISIBILITY);
 
 const streamIdParam = [
   param('streamId').isMongoId().withMessage('Invalid stream ID'),
@@ -14,6 +16,8 @@ const createStreamValidator = [
   body('tags.*').optional().isString().trim().isLength({ min: 1, max: 30 }),
   body('scheduledAt').optional({ values: 'falsy' }).isISO8601().withMessage('scheduledAt must be ISO 8601').toDate(),
   body('chatEnabled').optional().isBoolean().toBoolean(),
+  body('visibility').optional({ values: 'falsy' }).isIn(visibilityValues).withMessage('Invalid visibility'),
+  body('status').optional({ values: 'falsy' }).isIn([STREAM_STATUS.DRAFT, STREAM_STATUS.SCHEDULED]).withMessage('Invalid status'),
 ];
 
 const listStreamsValidator = [
@@ -47,6 +51,7 @@ const updateStreamValidator = [
   body('tags.*').optional().isString().trim().isLength({ min: 1, max: 30 }),
   body('scheduledAt').optional({ values: 'falsy' }).isISO8601().withMessage('scheduledAt must be ISO 8601').toDate(),
   body('chatEnabled').optional().isBoolean().toBoolean(),
+  body('visibility').optional({ values: 'falsy' }).isIn(visibilityValues).withMessage('Invalid visibility'),
 ];
 
 const createAuctionValidator = [

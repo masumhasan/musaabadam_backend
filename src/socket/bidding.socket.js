@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Stream = require('../models/Stream');
 const auctionService = require('../modules/auctions/services/auction.service');
 const { scheduleAuctionClose } = require('./auctionTimers');
+const presence = require('./presence');
 const logger = require('../utils/logger');
 
 // Shared JWT authentication for every socket connection. Attaches socket.user.
@@ -40,8 +41,14 @@ const registerBiddingSocket = (io) => {
         const stream = await Stream.findOne({ _id: streamId, deletedAt: null, status: 'live' });
         if (!stream) return socket.emit('error', { message: 'Stream not found or not live' });
 
+        // Persistent ban enforcement.
+        if ((stream.bannedUserIds || []).some((id) => String(id) === String(socket.user._id))) {
+          return socket.emit('banned', { streamId, message: 'You are banned from this stream' });
+        }
+
         socket.join(`stream:${streamId}`);
-        socket.emit('joined', { streamId });
+        socket.emit('joined', { streamId, viewerCount: presence.uniqueCount(streamId) + 1 });
+        await presence.addViewer(io, streamId, socket.id, socket.user._id);
       } catch {
         socket.emit('error', { message: 'Failed to join stream' });
       }
@@ -73,14 +80,16 @@ const registerBiddingSocket = (io) => {
       }
     });
 
-    socket.on('leave-stream', ({ streamId }) => {
+    socket.on('leave-stream', async ({ streamId }) => {
       if (streamId) {
         socket.leave(`stream:${streamId}`);
+        await presence.removeViewer(io, socket.id, streamId);
         socket.emit('left', { streamId });
       }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
+      await presence.removeViewer(io, socket.id);
       logger.info(`Socket disconnected: ${socket.id}`);
     });
   });

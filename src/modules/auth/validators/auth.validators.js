@@ -18,6 +18,13 @@ const registerValidator = [
     .withMessage('Username must be 3–30 characters')
     .matches(/^[a-zA-Z0-9_.-]+$/)
     .withMessage('Username may only contain letters, numbers, underscores, hyphens, and dots'),
+  body('referralCode')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 4, max: 16 })
+    .withMessage('Referral code must be 4–16 characters')
+    .matches(/^[a-zA-Z0-9]+$/)
+    .withMessage('Referral code may only contain letters and numbers'),
 ];
 
 const loginValidator = [

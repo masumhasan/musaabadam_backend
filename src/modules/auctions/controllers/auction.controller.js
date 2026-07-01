@@ -31,6 +31,42 @@ const placeBid = async (req, res, next) => {
   }
 };
 
+// Seller pauses a running auction — freeze the timer.
+const pauseAuction = async (req, res, next) => {
+  try {
+    clearAuctionTimer(req.params.productId);
+    const state = await svc.pauseAuction(req.user._id, req.params.productId);
+    if (state.streamId) getIO()?.to(`stream:${state.streamId}`).emit('auction-paused', state);
+    return success(res, { auction: state }, 'Auction paused');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Seller resumes a paused auction — restore remaining time + reschedule close.
+const resumeAuction = async (req, res, next) => {
+  try {
+    const state = await svc.resumeAuction(req.user._id, req.params.productId);
+    scheduleAuctionClose(state.productId, state.auctionEndsAt);
+    if (state.streamId) getIO()?.to(`stream:${state.streamId}`).emit('auction-resumed', state);
+    return success(res, { auction: state }, 'Auction resumed');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Seller cancels an auction — no winner, no order.
+const cancelAuction = async (req, res, next) => {
+  try {
+    clearAuctionTimer(req.params.productId);
+    const state = await svc.cancelAuction(req.user._id, req.params.productId);
+    if (state.streamId) getIO()?.to(`stream:${state.streamId}`).emit('auction-cancelled', state);
+    return success(res, { auction: state }, 'Auction cancelled');
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Seller manually closes an auction early.
 const closeAuction = async (req, res, next) => {
   try {
@@ -52,4 +88,4 @@ const bidHistory = async (req, res, next) => {
   }
 };
 
-module.exports = { startAuction, placeBid, closeAuction, bidHistory };
+module.exports = { startAuction, pauseAuction, resumeAuction, cancelAuction, placeBid, closeAuction, bidHistory };

@@ -1,5 +1,7 @@
 const User = require('../../../models/User');
 const Follower = require('../../../models/Follower');
+const Order = require('../../../models/Order');
+const { generateUniqueReferralCode } = require('../../../utils/referral');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS, SELLER_STATUS } = require('../../../config/constants');
 
@@ -131,6 +133,40 @@ const applyAsSeller = async (userId, data) => {
   return user.toPrivateProfile();
 };
 
+// Returns the user's unique referral code (generating one on first access for
+// legacy accounts) plus invite stats. Reward VALUES are set later; for now
+// `credit` mirrors rewardPoints and the counts are derived from referrals.
+const getReferralInfo = async (userId) => {
+  const user = await User.findById(userId).select('referralCode rewardPoints');
+  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+
+  // Backfill a code for accounts created before referral codes existed.
+  if (!user.referralCode) {
+    user.referralCode = await generateUniqueReferralCode(User);
+    await user.save();
+  }
+
+  const referredIds = await User.find({ referredBy: userId, deletedAt: null }).distinct('_id');
+  const totalReferred = referredIds.length;
+
+  // "Complete" = a referred user who has made at least one paid purchase.
+  const completedBuyerIds = totalReferred
+    ? await Order.distinct('buyerId', { buyerId: { $in: referredIds }, isPaid: true })
+    : [];
+  const complete = completedBuyerIds.length;
+  const pending = Math.max(0, totalReferred - complete);
+
+  return {
+    referralCode: user.referralCode,
+    stats: {
+      credit: user.rewardPoints || 0, // reward value logic to be defined later
+      complete,
+      pending,
+      totalReferred,
+    },
+  };
+};
+
 module.exports = {
   getProfile,
   updateProfile,
@@ -141,4 +177,5 @@ module.exports = {
   getPublicProfile,
   updateNotificationPreferences,
   applyAsSeller,
+  getReferralInfo,
 };

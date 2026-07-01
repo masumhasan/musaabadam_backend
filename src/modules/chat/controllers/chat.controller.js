@@ -18,6 +18,7 @@ const send = async (req, res, next) => {
       streamId: req.params.streamId,
       sender: req.user,
       text: req.body.text,
+      replyTo: req.body.replyTo,
     });
     getIO()?.to(`stream:${req.params.streamId}`).emit('chat-message', message);
     return success(res, { message }, 'Message sent');

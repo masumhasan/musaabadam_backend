@@ -15,6 +15,9 @@ const isSeller = requireRole(ROLES.SELLER);
 
 // Seller controls
 router.post('/start', authenticateUser, isSeller, ...startAuctionValidator, validate, ctrl.startAuction);
+router.post('/:productId/pause', authenticateUser, isSeller, ...productIdParam, validate, ctrl.pauseAuction);
+router.post('/:productId/resume', authenticateUser, isSeller, ...productIdParam, validate, ctrl.resumeAuction);
+router.post('/:productId/cancel', authenticateUser, isSeller, ...productIdParam, validate, ctrl.cancelAuction);
 router.post('/:productId/close', authenticateUser, isSeller, ...productIdParam, validate, ctrl.closeAuction);
 
 // Bidding (REST fallback — primary path is the socket)

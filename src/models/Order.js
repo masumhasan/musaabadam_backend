@@ -8,6 +8,7 @@ const ORDER_STATUS = Object.freeze({
   PROCESSING: 'processing',
   SHIPPED: 'shipped',
   DELIVERED: 'delivered',
+  COMPLETED: 'completed', // buyer confirmed receipt (terminal)
   CANCELLED: 'cancelled',
   REFUNDED: 'refunded',
 });
@@ -67,6 +68,7 @@ const OrderSchema = new mongoose.Schema(
     trackingCarrier: { type: String, trim: true },
     shippedAt: { type: Date },
     deliveredAt: { type: Date },
+    completedAt: { type: Date },
     cancelledAt: { type: Date },
     cancelReason: { type: String, trim: true },
 

@@ -27,6 +27,11 @@ const MessageSchema = new mongoose.Schema(
     senderName: { type: String, trim: true },
     senderAvatarUrl: { type: String, trim: true },
 
+    // Threaded reply to another message in the same stream.
+    replyTo: { type: ObjectId, ref: 'Message' },
+    // @mentioned users (resolved from @username tokens at send time).
+    mentions: [{ type: ObjectId, ref: 'User' }],
+
     status: { type: String, enum: Object.values(MESSAGE_STATUS), default: MESSAGE_STATUS.VISIBLE },
     moderatedBy: { type: ObjectId, ref: 'User' },
     moderationReason: { type: String, trim: true },

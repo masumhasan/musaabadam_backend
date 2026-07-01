@@ -8,6 +8,7 @@ const startAuctionValidator = [
   body('durationMs').optional({ values: 'falsy' }).isInt({ min: 5000, max: 3600000 }).withMessage('durationMs must be 5s–60m'),
   body('startingPrice').optional({ values: 'falsy' }).isFloat({ min: 0 }).withMessage('startingPrice must be >= 0'),
   body('reservePrice').optional({ values: 'falsy' }).isFloat({ min: 0 }).withMessage('reservePrice must be >= 0'),
+  body('bidIncrement').optional({ values: 'falsy' }).isFloat({ gt: 0 }).withMessage('bidIncrement must be > 0'),
 ];
 
 const placeBidValidator = [

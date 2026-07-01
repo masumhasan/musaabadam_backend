@@ -5,11 +5,12 @@ const logger = require('../../../utils/logger');
 
 const register = async (req, res, next) => {
   try {
-    const { email, password, username } = req.body;
+    const { email, password, username, referralCode } = req.body;
     const result = await authService.register({
       email,
       password,
       username,
+      referralCode,
       ipAddress: req.ip,
     });
     return created(res, result, 'Account created. Please check your email to verify your account.');

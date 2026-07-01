@@ -169,7 +169,51 @@ const placeBid = async (bidderId, productId, bidAmount) => {
   };
 };
 
+// Start a flash sale on a buy-now product: discounted price + expiry (+ stock cap).
+const startFlashSale = async (sellerId, productId, { flashSalePrice, durationMinutes, endsAt, stock }) => {
+  const product = await Product.findByIdAndSeller(productId, sellerId);
+  if (!product) throw new AppError('Product not found', HTTP_STATUS.NOT_FOUND);
+  if (product.listingType !== LISTING_TYPES.BUY_IT_NOW) {
+    throw new AppError('Flash sales apply to buy-now products only', HTTP_STATUS.CONFLICT);
+  }
+  const price = Number(flashSalePrice);
+  if (Number.isNaN(price) || price < 0 || price >= product.price) {
+    throw new AppError('Flash sale price must be lower than the regular price', HTTP_STATUS.BAD_REQUEST);
+  }
+  const ends = endsAt ? new Date(endsAt) : new Date(Date.now() + (Number(durationMinutes) || 60) * 60 * 1000);
+  if (ends <= new Date()) throw new AppError('Flash sale end time must be in the future', HTTP_STATUS.BAD_REQUEST);
+
+  product.flashSale = true;
+  product.flashSalePrice = price;
+  product.flashSaleEndsAt = ends;
+  product.flashSaleStock = stock != null ? Number(stock) : undefined;
+  product.flashSaleSold = 0;
+  await product.save();
+  return product;
+};
+
+const endFlashSale = async (sellerId, productId) => {
+  const product = await Product.findByIdAndSeller(productId, sellerId);
+  if (!product) throw new AppError('Product not found', HTTP_STATUS.NOT_FOUND);
+  product.flashSale = false;
+  product.flashSalePrice = undefined;
+  product.flashSaleEndsAt = undefined;
+  product.flashSaleStock = undefined;
+  await product.save();
+  return product;
+};
+
+// Background sweep: auto-expire flash sales whose window has passed.
+const expireFlashSales = async () => {
+  const res = await Product.updateMany(
+    { flashSale: true, flashSaleEndsAt: { $ne: null, $lte: new Date() } },
+    { $set: { flashSale: false }, $unset: { flashSalePrice: 1, flashSaleEndsAt: 1, flashSaleStock: 1 } }
+  );
+  return res.modifiedCount || 0;
+};
+
 module.exports = {
   createProduct, updateProduct, deleteProduct, publishProduct, deactivateProduct,
   getProduct, getSellerInventory, getPublicProducts, placeBid,
+  startFlashSale, endFlashSale, expireFlashSales,
 };

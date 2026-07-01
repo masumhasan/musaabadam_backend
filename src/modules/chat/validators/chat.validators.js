@@ -12,6 +12,7 @@ const historyValidator = [
 const sendValidator = [
   ...streamIdParam,
   body('text').isString().trim().isLength({ min: 1, max: 500 }).withMessage('text must be 1–500 chars'),
+  body('replyTo').optional({ values: 'falsy' }).isMongoId().withMessage('Invalid replyTo message ID'),
 ];
 
 module.exports = { streamIdParam, messageIdParam, historyValidator, sendValidator };

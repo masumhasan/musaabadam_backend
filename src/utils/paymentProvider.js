@@ -50,6 +50,17 @@ const mockProvider = {
   async createPayout({ amount, currency, destination }) {
     return { id: rid('po'), amount, currency, destination, status: 'paid' };
   },
+
+  // Connect (seller payout account) — mock auto-completes onboarding.
+  async createConnectAccount() {
+    return { id: rid('acct') };
+  },
+  async createAccountLink({ accountId }) {
+    return { url: `https://connect.mock/onboard/${accountId}`, accountId };
+  },
+  async getAccountStatus() {
+    return { chargesEnabled: true, payoutsEnabled: true, detailsSubmitted: true };
+  },
 };
 
 // ── Stripe provider (lazy — only loaded when configured) ─────────────────────
@@ -107,6 +118,28 @@ if (process.env.STRIPE_SECRET_KEY) {
           destination,
         });
         return { id: payout.id, amount, currency, destination, status: 'pending' };
+      },
+
+      async createConnectAccount({ email } = {}) {
+        const account = await stripe.accounts.create({ type: 'express', email });
+        return { id: account.id };
+      },
+      async createAccountLink({ accountId }) {
+        const link = await stripe.accountLinks.create({
+          account: accountId,
+          refresh_url: `${process.env.APP_URL || ''}/payouts/refresh`,
+          return_url: `${process.env.APP_URL || ''}/payouts/return`,
+          type: 'account_onboarding',
+        });
+        return { url: link.url, accountId };
+      },
+      async getAccountStatus({ accountId }) {
+        const acct = await stripe.accounts.retrieve(accountId);
+        return {
+          chargesEnabled: acct.charges_enabled,
+          payoutsEnabled: acct.payouts_enabled,
+          detailsSubmitted: acct.details_submitted,
+        };
       },
     };
     logger.info('Payment provider: Stripe');

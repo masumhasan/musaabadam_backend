@@ -3,14 +3,37 @@ const Order = require('../../../models/Order');
 const Product = require('../../../models/Product');
 const { ORDER_STATUS } = require('../../../models/Order');
 const paymentService = require('../../payments/services/payment.service');
+const shippingService = require('../../shipping/services/shipping.service');
+const ShippingProfile = require('../../../models/ShippingProfile');
+const { computeTax } = require('../../../utils/tax');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS } = require('../../../config/constants');
+
+const round2 = (n) => Math.round(n * 100) / 100;
+
+// Shipping (from the seller's default profile) + region tax (from the shipping
+// address country). Returns { shippingCost, taxAmount, totalAmount }.
+const computeCharges = async ({ sellerId, subtotal, weightKg = 0, country = null }) => {
+  const profile =
+    (await ShippingProfile.findOne({ sellerId, deletedAt: null, isDefault: true })) ||
+    (await ShippingProfile.findOne({ sellerId, deletedAt: null }));
+  let shippingCost = 0;
+  try {
+    shippingCost = round2(shippingService.computeRate(profile, { subtotal, weightKg }));
+  } catch {
+    shippingCost = round2(profile?.flatRate || 0);
+  }
+  const taxAmount = computeTax(subtotal, country);
+  const totalAmount = round2(subtotal + shippingCost + taxAmount);
+  return { shippingCost, taxAmount, totalAmount };
+};
 
 const VALID_TRANSITIONS = {
   [ORDER_STATUS.PENDING]: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELLED],
   [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PROCESSING, ORDER_STATUS.CANCELLED],
   [ORDER_STATUS.PROCESSING]: [ORDER_STATUS.SHIPPED, ORDER_STATUS.CANCELLED],
   [ORDER_STATUS.SHIPPED]: [ORDER_STATUS.DELIVERED],
+  [ORDER_STATUS.DELIVERED]: [ORDER_STATUS.COMPLETED],
 };
 
 const createOrder = async (buyerId, { items, shippingAddressSnapshot, streamId, notes }) => {
@@ -41,7 +64,9 @@ const createOrder = async (buyerId, { items, shippingAddressSnapshot, streamId, 
     sellerId = product.sellerId;
 
     const unitPrice =
-      product.listingType === 'buy_it_now' ? product.price : product.currentHighBid || product.startingPrice || 0;
+      product.listingType === 'buy_it_now'
+        ? product.effectivePrice()
+        : product.currentHighBid || product.startingPrice || 0;
 
     return {
       productId: product._id,
@@ -53,8 +78,15 @@ const createOrder = async (buyerId, { items, shippingAddressSnapshot, streamId, 
     };
   });
 
-  const subtotal = orderItems.reduce((sum, i) => sum + i.totalPrice, 0);
-  const totalAmount = subtotal; // shipping + tax calculated separately
+  const subtotal = round2(orderItems.reduce((sum, i) => sum + i.totalPrice, 0));
+  const weightKg = products.reduce((w, p) => w + (p.shippingWeight || 0), 0);
+
+  const { shippingCost, taxAmount, totalAmount } = await computeCharges({
+    sellerId,
+    subtotal,
+    weightKg,
+    country: shippingAddressSnapshot?.country ?? null,
+  });
 
   const order = await Order.create({
     buyerId,
@@ -62,14 +94,36 @@ const createOrder = async (buyerId, { items, shippingAddressSnapshot, streamId, 
     streamId: streamId ?? null,
     items: orderItems,
     subtotal,
-    shippingCost: 0,
-    taxAmount: 0,
+    shippingCost,
+    taxAmount,
     totalAmount,
     shippingAddressSnapshot: shippingAddressSnapshot ?? null,
     notes: notes ?? null,
     status: ORDER_STATUS.PENDING,
   });
 
+  return order;
+};
+
+// Set/replace the shipping address on a pending order and recompute
+// shipping + tax + total (destination country drives the tax rate).
+const setOrderAddress = async (buyerId, orderId, shippingAddressSnapshot) => {
+  const order = await Order.findById(orderId);
+  if (!order) throw new AppError('Order not found', HTTP_STATUS.NOT_FOUND);
+  if (!order.buyerId.equals(buyerId)) throw new AppError('Not authorized', HTTP_STATUS.FORBIDDEN);
+  if (order.isPaid) throw new AppError('Order is already paid', HTTP_STATUS.CONFLICT);
+
+  const { shippingCost, taxAmount, totalAmount } = await computeCharges({
+    sellerId: order.sellerId,
+    subtotal: order.subtotal,
+    country: shippingAddressSnapshot?.country ?? null,
+  });
+
+  order.shippingAddressSnapshot = shippingAddressSnapshot;
+  order.shippingCost = shippingCost;
+  order.taxAmount = taxAmount;
+  order.totalAmount = totalAmount;
+  await order.save();
   return order;
 };
 
@@ -139,6 +193,7 @@ const updateOrderStatus = async (sellerId, orderId, { status, trackingNumber, tr
     if (trackingCarrier) order.trackingCarrier = trackingCarrier;
   }
   if (status === ORDER_STATUS.DELIVERED) order.deliveredAt = new Date();
+  if (status === ORDER_STATUS.COMPLETED) order.completedAt = new Date();
   if (status === ORDER_STATUS.CANCELLED) {
     order.cancelledAt = new Date();
     order.cancelReason = cancelReason ?? 'Cancelled by seller';
@@ -152,6 +207,31 @@ const updateOrderStatus = async (sellerId, orderId, { status, trackingNumber, tr
       await paymentService.releaseEscrow(order._id);
     } catch (err) {
       // Don't fail the status update if escrow release hiccups; it can be retried.
+    }
+  }
+
+  return order;
+};
+
+// Buyer confirms receipt of a delivered order → terminal `completed` state.
+// Also ensures escrow is released (in case delivery release was retried/missed).
+const completeOrder = async (buyerId, orderId) => {
+  const order = await Order.findById(orderId);
+  if (!order) throw new AppError('Order not found', HTTP_STATUS.NOT_FOUND);
+  if (!order.buyerId.equals(buyerId)) throw new AppError('Not authorized', HTTP_STATUS.FORBIDDEN);
+  if (order.status !== ORDER_STATUS.DELIVERED) {
+    throw new AppError('Only delivered orders can be marked completed', HTTP_STATUS.CONFLICT);
+  }
+
+  order.status = ORDER_STATUS.COMPLETED;
+  order.completedAt = new Date();
+  await order.save();
+
+  if (order.isPaid) {
+    try {
+      await paymentService.releaseEscrow(order._id);
+    } catch (err) {
+      // Escrow may already be released on delivery; ignore.
     }
   }
 
@@ -174,4 +254,4 @@ const cancelOrder = async (buyerId, orderId, { cancelReason } = {}) => {
   return order;
 };
 
-module.exports = { createOrder, getBuyerOrders, getSellerOrders, getOrder, updateOrderStatus, cancelOrder };
+module.exports = { createOrder, setOrderAddress, getBuyerOrders, getSellerOrders, getOrder, updateOrderStatus, completeOrder, cancelOrder };

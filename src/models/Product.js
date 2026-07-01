@@ -33,6 +33,10 @@ const ProductSchema = new mongoose.Schema(
     currentHighBid: { type: Number, min: 0, default: 0 },
     highestBidderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     auctionEndsAt: { type: Date },
+    // Live-auction runtime control
+    auctionState: { type: String, enum: ['none', 'running', 'paused'], default: 'none' },
+    bidIncrement: { type: Number, min: 0.01, default: 1 },
+    auctionPausedRemainingMs: { type: Number, min: 0 },
 
     // Inventory
     quantity: { type: Number, required: true, min: 1, default: 1 },
@@ -47,6 +51,10 @@ const ProductSchema = new mongoose.Schema(
 
     // Listing features
     flashSale: { type: Boolean, default: false },
+    flashSalePrice: { type: Number, min: 0 }, // discounted price while active
+    flashSaleEndsAt: { type: Date }, // auto-expires at this time
+    flashSaleStock: { type: Number, min: 0 }, // optional units cap for the sale
+    flashSaleSold: { type: Number, min: 0, default: 0 },
     acceptOffers: { type: Boolean, default: false },
     maxDiscount: { type: Number, min: 0, max: 100, default: 0 },
     reserveForLive: { type: Boolean, default: false },
@@ -93,6 +101,22 @@ ProductSchema.virtual('isAuctionLive').get(function () {
     this.auctionEndsAt > new Date()
   );
 });
+
+ProductSchema.virtual('isFlashSaleActive').get(function () {
+  return (
+    this.flashSale &&
+    this.flashSalePrice != null &&
+    this.flashSaleEndsAt &&
+    this.flashSaleEndsAt > new Date() &&
+    (this.flashSaleStock == null || (this.flashSaleSold || 0) < this.flashSaleStock)
+  );
+});
+
+// The price a buyer actually pays right now (honours an active flash sale).
+ProductSchema.methods.effectivePrice = function () {
+  if (this.isFlashSaleActive) return this.flashSalePrice;
+  return this.price;
+};
 
 // ─── Statics ──────────────────────────────────────────────────────────────────
 

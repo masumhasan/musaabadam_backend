@@ -1,6 +1,7 @@
 const { HTTP_STATUS } = require('../../../config/constants');
 const { verifyWebhookSignature } = require('../../../utils/streamClient');
 const logger = require('../../../utils/logger');
+const { getIO } = require('../../../socket');
 
 const svc = require('../services/stream.service');
 
@@ -126,6 +127,44 @@ const getStreamWebhook = async (req, res) => {
   return res.json({ success: true });
 };
 
+const publish = async (req, res, next) => {
+  try {
+    const stream = await svc.publishStream(req.user._id, req.params.streamId);
+    res.json({ success: true, data: { stream } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const remove = async (req, res, next) => {
+  try {
+    const result = await svc.deleteStream(req.user._id, req.params.streamId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const pinProduct = async (req, res, next) => {
+  try {
+    const data = await svc.pinProduct(req.user._id, req.params.streamId, req.body.productId);
+    getIO()?.to(`stream:${data.streamId}`).emit('product-pinned', data);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const unpinProduct = async (req, res, next) => {
+  try {
+    const data = await svc.unpinProduct(req.user._id, req.params.streamId, req.body.productId);
+    getIO()?.to(`stream:${data.streamId}`).emit('product-unpinned', data);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   create,
   createAuction,
@@ -140,4 +179,8 @@ module.exports = {
   listReplays,
   replay,
   getStreamWebhook,
+  pinProduct,
+  unpinProduct,
+  publish,
+  remove,
 };

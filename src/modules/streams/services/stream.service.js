@@ -1,5 +1,5 @@
 const Stream = require('../../../models/Stream');
-const { STREAM_STATUS, RECORDING_STATUS } = require('../../../models/Stream');
+const { STREAM_STATUS, STREAM_VISIBILITY, RECORDING_STATUS } = require('../../../models/Stream');
 const Product = require('../../../models/Product');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS } = require('../../../config/constants');
@@ -55,11 +55,40 @@ const createStream = async (seller, data) => {
     tags: data.tags ?? [],
     scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
     chatEnabled: data.chatEnabled ?? true,
+    visibility: data.visibility ?? STREAM_VISIBILITY.PUBLIC,
+    // A draft is saved without being published to the schedule/feed.
+    status: data.status === STREAM_STATUS.DRAFT ? STREAM_STATUS.DRAFT : STREAM_STATUS.SCHEDULED,
     callId,
     callType: 'livestream',
   });
 
   return stream;
+};
+
+// Publish a draft → scheduled (appears in schedule/feed).
+const publishStream = async (sellerId, streamId) => {
+  const stream = await Stream.findOne({ _id: streamId, deletedAt: null });
+  if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
+  assertOwner(stream, sellerId);
+  if (stream.status !== STREAM_STATUS.DRAFT) {
+    throw new AppError('Only draft shows can be published', HTTP_STATUS.CONFLICT);
+  }
+  stream.status = STREAM_STATUS.SCHEDULED;
+  await stream.save();
+  return stream;
+};
+
+// Soft-delete a show (only drafts / scheduled / cancelled — never a live one).
+const deleteStream = async (sellerId, streamId) => {
+  const stream = await Stream.findOne({ _id: streamId, deletedAt: null });
+  if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
+  assertOwner(stream, sellerId);
+  if (stream.status === STREAM_STATUS.LIVE) {
+    throw new AppError('Cannot delete a live show — end it first', HTTP_STATUS.CONFLICT);
+  }
+  stream.deletedAt = new Date();
+  await stream.save();
+  return { id: String(stream._id) };
 };
 
 // ── Start ─────────────────────────────────────────────────────────────────────
@@ -145,7 +174,9 @@ const joinStream = async (streamId, user) => {
 // ── List public streams ───────────────────────────────────────────────────────
 
 const getPublicStreams = async ({ status = 'live', categoryId, sellerId, page = 1, limit = 20 }) => {
-  const query = { deletedAt: null, status };
+  // Public feed excludes private shows (link-only). Followers-only is surfaced
+  // here too; access control for those is enforced at join time.
+  const query = { deletedAt: null, status, visibility: { $ne: STREAM_VISIBILITY.PRIVATE } };
   if (categoryId) query.categoryId = categoryId;
   if (sellerId) query.sellerId = sellerId;
 
@@ -195,8 +226,8 @@ const updateStream = async (sellerId, streamId, data) => {
   const stream = await Stream.findOne({ _id: streamId, deletedAt: null });
   if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
   assertOwner(stream, sellerId);
-  if (stream.status !== STREAM_STATUS.SCHEDULED) {
-    throw new AppError('Only scheduled shows can be edited', HTTP_STATUS.CONFLICT);
+  if (![STREAM_STATUS.SCHEDULED, STREAM_STATUS.DRAFT].includes(stream.status)) {
+    throw new AppError('Only draft or scheduled shows can be edited', HTTP_STATUS.CONFLICT);
   }
 
   if (data.title != null) stream.title = data.title;
@@ -206,6 +237,7 @@ const updateStream = async (sellerId, streamId, data) => {
   if (data.thumbnailUrl !== undefined) stream.thumbnailUrl = data.thumbnailUrl || null;
   if (data.tags != null) stream.tags = data.tags;
   if (data.chatEnabled != null) stream.chatEnabled = data.chatEnabled;
+  if (data.visibility != null) stream.visibility = data.visibility;
 
   await stream.save();
   return stream;
@@ -399,6 +431,46 @@ const cancelStream = async (sellerId, streamId) => {
   return stream;
 };
 
+// Seller pins a product to the live stream (shown as the current buy/bid item).
+// Returns lightweight product data for the realtime broadcast.
+const pinProduct = async (sellerId, streamId, productId) => {
+  const stream = await Stream.findOne({ _id: streamId, deletedAt: null });
+  if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
+  if (!stream.sellerId.equals(sellerId)) throw new AppError('Not authorized', HTTP_STATUS.FORBIDDEN);
+
+  const product = await Product.findOne({ _id: productId, deletedAt: null });
+  if (!product) throw new AppError('Product not found', HTTP_STATUS.NOT_FOUND);
+  if (!product.sellerId.equals(sellerId)) throw new AppError('Not your product', HTTP_STATUS.FORBIDDEN);
+
+  product.streamId = stream._id;
+  await product.save();
+
+  // Keep the freshly pinned product at the head of the list.
+  stream.pinnedProducts = [product._id, ...(stream.pinnedProducts || []).filter((id) => !id.equals(product._id))];
+  await stream.save();
+
+  return {
+    streamId: String(stream._id),
+    productId: String(product._id),
+    title: product.title,
+    price: product.price,
+    listingType: product.listingType,
+    imageUrl: product.images?.[0] ?? null,
+    quantity: product.quantity,
+    quantitySold: product.quantitySold,
+  };
+};
+
+const unpinProduct = async (sellerId, streamId, productId) => {
+  const stream = await Stream.findOne({ _id: streamId, deletedAt: null });
+  if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
+  if (!stream.sellerId.equals(sellerId)) throw new AppError('Not authorized', HTTP_STATUS.FORBIDDEN);
+
+  stream.pinnedProducts = (stream.pinnedProducts || []).filter((id) => String(id) !== String(productId));
+  await stream.save();
+  return { streamId: String(stream._id), productId: String(productId) };
+};
+
 module.exports = {
   createStream,
   createAuctionStream,
@@ -414,4 +486,8 @@ module.exports = {
   ingestRecording,
   markRecordingFailed,
   cancelStream,
+  pinProduct,
+  unpinProduct,
+  publishStream,
+  deleteStream,
 };

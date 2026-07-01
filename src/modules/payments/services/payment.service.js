@@ -5,7 +5,9 @@ const LedgerEntry = require('../../../models/LedgerEntry');
 const Payout = require('../../../models/Payout');
 const User = require('../../../models/User');
 const Order = require('../../../models/Order');
+const Product = require('../../../models/Product');
 const { ORDER_STATUS } = require('../../../models/Order');
+const { PRODUCT_STATUS, LISTING_TYPES } = require('../../../config/constants');
 const provider = require('../../../utils/paymentProvider');
 const { AppError } = require('../../../middleware/errorHandler');
 const {
@@ -199,7 +201,46 @@ const confirmPayment = async (buyerId, orderId, { paymentMethodId } = {}) => {
   if (order.status === ORDER_STATUS.PENDING) order.status = ORDER_STATUS.CONFIRMED;
   await order.save();
 
+  // Reduce inventory for non-auction items and broadcast buy-now / sold-out to
+  // the live room. (Auction winners already had quantitySold set at close.)
+  await settleInventoryAndBroadcast(order);
+
   return { payment, order };
+};
+
+// Decrement stock for buy-now items and emit realtime events to the stream room.
+const settleInventoryAndBroadcast = async (order) => {
+  // Lazy require avoids a socket <-> payment require cycle at module load.
+  // eslint-disable-next-line global-require
+  const { getIO } = require('../../../socket');
+  const io = getIO();
+  const room = order.streamId ? `stream:${order.streamId}` : null;
+
+  for (const item of order.items) {
+    const product = await Product.findById(item.productId);
+    if (!product || product.listingType === LISTING_TYPES.AUCTION) continue;
+
+    product.quantitySold = Math.min(product.quantity, (product.quantitySold || 0) + item.quantity);
+    const soldOut = product.quantitySold >= product.quantity;
+    if (soldOut) product.status = PRODUCT_STATUS.SOLD_OUT;
+    await product.save();
+
+    if (room && io) {
+      io.to(room).emit('buy-now-purchase', {
+        streamId: String(order.streamId),
+        productId: String(product._id),
+        title: product.title,
+        quantitySold: product.quantitySold,
+        quantity: product.quantity,
+      });
+      if (soldOut) {
+        io.to(room).emit('product-sold-out', {
+          streamId: String(order.streamId),
+          productId: String(product._id),
+        });
+      }
+    }
+  }
 };
 
 // Release escrow to the seller's available balance. Invoked when an order is
@@ -348,6 +389,41 @@ const requestPayout = async (sellerId, { amount, destination } = {}) => {
   return payout;
 };
 
+// ─── Seller payout account (Stripe Connect / mock) ───────────────────────────
+
+// Ensure the seller has a connected payout account and return an onboarding link.
+const startPayoutOnboarding = async (sellerId) => {
+  const user = await User.findById(sellerId).select('email sellerProfile');
+  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+
+  let accountId = user.sellerProfile?.stripeAccountId;
+  if (!accountId) {
+    const account = await provider.createConnectAccount({ email: user.email });
+    accountId = account.id;
+    user.sellerProfile = user.sellerProfile || {};
+    user.sellerProfile.stripeAccountId = accountId;
+    await user.save();
+  }
+
+  const link = await provider.createAccountLink({ accountId });
+  return { accountId, onboardingUrl: link.url, provider: provider.name };
+};
+
+// Report whether the seller can receive payouts yet.
+const getPayoutAccount = async (sellerId) => {
+  const user = await User.findById(sellerId).select('sellerProfile');
+  const accountId = user?.sellerProfile?.stripeAccountId || null;
+  if (!accountId) return { connected: false, payoutsEnabled: false, accountId: null };
+
+  let status = { chargesEnabled: false, payoutsEnabled: false, detailsSubmitted: false };
+  try {
+    status = await provider.getAccountStatus({ accountId });
+  } catch {
+    // Provider unavailable — report as pending.
+  }
+  return { connected: true, accountId, ...status };
+};
+
 const listPayouts = async (sellerId, { page = 1, limit = 20 } = {}) => {
   const skip = (Number(page) - 1) * Number(limit);
   const [payouts, total] = await Promise.all([
@@ -369,4 +445,6 @@ module.exports = {
   getLedger,
   requestPayout,
   listPayouts,
+  startPayoutOnboarding,
+  getPayoutAccount,
 };

@@ -97,6 +97,7 @@ app.use('/api/v1/auctions', require('./modules/auctions/routes/auction.routes'))
 app.use('/api/v1/payments', require('./modules/payments/routes/payment.routes'));
 app.use('/api/v1/chat', require('./modules/chat/routes/chat.routes'));
 app.use('/api/v1/shipping', require('./modules/shipping/routes/shipping.routes'));
+app.use('/api/v1/search', require('./modules/search/routes/search.routes'));
 app.use('/api/v1/analytics', require('./modules/analytics/routes/analytics.routes'));
 
 // ─── 404 & Error Handling ─────────────────────────────────────────────────────

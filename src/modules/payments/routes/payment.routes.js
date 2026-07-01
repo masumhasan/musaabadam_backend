@@ -33,4 +33,8 @@ router.get('/wallet/ledger', authenticateUser, ...paginationValidator, validate,
 router.get('/payouts', authenticateUser, isSeller, ...paginationValidator, validate, ctrl.listPayouts);
 router.post('/payouts', authenticateUser, isSeller, ...payoutValidator, validate, ctrl.requestPayout);
 
+// ── Payout account onboarding (Stripe Connect / mock) ────────────────────────
+router.get('/payout-account', authenticateUser, isSeller, ctrl.payoutAccount);
+router.post('/payout-account/onboard', authenticateUser, isSeller, ctrl.onboardPayoutAccount);
+
 module.exports = router;

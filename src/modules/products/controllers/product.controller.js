@@ -83,4 +83,22 @@ const bid = async (req, res, next) => {
   }
 };
 
-module.exports = { create, update, remove, getOne, list, inventory, publish, deactivate, listCategories, bid };
+const startFlashSale = async (req, res, next) => {
+  try {
+    const product = await productService.startFlashSale(req.user._id, req.params.productId, req.body);
+    return success(res, { product }, 'Flash sale started');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const endFlashSale = async (req, res, next) => {
+  try {
+    const product = await productService.endFlashSale(req.user._id, req.params.productId);
+    return success(res, { product }, 'Flash sale ended');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { create, update, remove, getOne, list, inventory, publish, deactivate, listCategories, bid, startFlashSale, endFlashSale };

@@ -28,6 +28,9 @@ router.post('/seller-application', [
 
 router.get('/profile', userController.getMyProfile);
 
+// Referral code + invite stats (must precede the /:userId catch-all below)
+router.get('/referral', userController.getReferralInfo);
+
 router.put('/profile', [
   body('displayName').optional().trim().isLength({ max: 60 }).withMessage('Display name too long'),
   body('bio').optional().trim().isLength({ max: 300 }).withMessage('Bio too long'),

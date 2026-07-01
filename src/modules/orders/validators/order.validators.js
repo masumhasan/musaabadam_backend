@@ -25,6 +25,7 @@ const updateStatusValidator = [
       ORDER_STATUS.PROCESSING,
       ORDER_STATUS.SHIPPED,
       ORDER_STATUS.DELIVERED,
+      ORDER_STATUS.COMPLETED,
       ORDER_STATUS.CANCELLED,
     ])
     .withMessage('Invalid status'),

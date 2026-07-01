@@ -4,6 +4,7 @@ const User = require('../../../models/User');
 const RefreshToken = require('../../../models/RefreshToken');
 const { generateAccessToken, generateRefreshToken, generateResetSessionToken } = require('../../../utils/jwtService');
 const { sendVerificationOtpEmail, sendPasswordResetOtpEmail, sendChangeEmailOtpEmail, sendChangePasswordOtpEmail } = require('../../../utils/emailService');
+const { generateUniqueReferralCode } = require('../../../utils/referral');
 const { ROLES, PERMISSIONS } = require('../../../config/constants');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS } = require('../../../config/constants');
@@ -33,7 +34,7 @@ const saveRefreshToken = async (userId, rawToken, ipAddress, deviceInfo) => {
 
 // ─── Service Methods ──────────────────────────────────────────────────────────
 
-const register = async ({ email, password, username, ipAddress }) => {
+const register = async ({ email, password, username, referralCode, ipAddress }) => {
   const normalizedEmail = email.toLowerCase().trim();
 
   if (await User.existsByEmail(normalizedEmail)) {
@@ -48,6 +49,19 @@ const register = async ({ email, password, username, ipAddress }) => {
     throw new AppError('Username is already taken', HTTP_STATUS.CONFLICT);
   }
 
+  // Resolve an entered referral code to the referring user (if any).
+  let referredBy = null;
+  if (referralCode && referralCode.trim()) {
+    const referrer = await User.findOne({
+      referralCode: referralCode.trim().toUpperCase(),
+      deletedAt: null,
+    }).select('_id');
+    if (!referrer) {
+      throw new AppError('Invalid referral code', HTTP_STATUS.BAD_REQUEST);
+    }
+    referredBy = referrer._id;
+  }
+
   const user = await User.create({
     email: normalizedEmail,
     passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
@@ -55,6 +69,8 @@ const register = async ({ email, password, username, ipAddress }) => {
     displayName: finalUsername,
     role: ROLES.BUYER,
     permissions: [...PERMISSIONS.BUYER],
+    referralCode: await generateUniqueReferralCode(User),
+    referredBy,
   });
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();

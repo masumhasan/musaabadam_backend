@@ -36,6 +36,14 @@ router.patch('/:streamId/start', authenticateUser, isSeller, ...streamIdParam, v
 router.patch('/:streamId/end', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.end);
 router.patch('/:streamId/cancel', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.cancel);
 
+// Seller-only: publish a draft, delete a show
+router.patch('/:streamId/publish', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.publish);
+router.delete('/:streamId', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.remove);
+
+// Seller-only: pin/unpin the current product to the live show
+router.post('/:streamId/pin', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.pinProduct);
+router.post('/:streamId/unpin', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.unpinProduct);
+
 // Any authenticated user: browse and join streams
 router.get('/', authenticateUser, ...listStreamsValidator, validate, ctrl.list);
 router.get('/:streamId', authenticateUser, ...streamIdParam, validate, ctrl.detail);

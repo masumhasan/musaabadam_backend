@@ -3,10 +3,17 @@ const mongoose = require('mongoose');
 const { ObjectId } = mongoose.Schema.Types;
 
 const STREAM_STATUS = Object.freeze({
+  DRAFT: 'draft', // created but not yet published/scheduled
   SCHEDULED: 'scheduled',
   LIVE: 'live',
   ENDED: 'ended',
   CANCELLED: 'cancelled',
+});
+
+const STREAM_VISIBILITY = Object.freeze({
+  PUBLIC: 'public',
+  FOLLOWERS: 'followers', // only the seller's followers can see it
+  PRIVATE: 'private', // only via direct link
 });
 
 // Lifecycle of the replay recording for a past show
@@ -26,11 +33,18 @@ const StreamSchema = new mongoose.Schema(
     thumbnailUrl: { type: String, trim: true },
     tags: { type: [String], default: [] },
 
-    // Status lifecycle: scheduled → live → ended | cancelled
+    // Status lifecycle: draft → scheduled → live → ended | cancelled
     status: {
       type: String,
       enum: Object.values(STREAM_STATUS),
       default: STREAM_STATUS.SCHEDULED,
+    },
+
+    // Who can discover this show
+    visibility: {
+      type: String,
+      enum: Object.values(STREAM_VISIBILITY),
+      default: STREAM_VISIBILITY.PUBLIC,
     },
 
     // GetStream call reference
@@ -64,6 +78,14 @@ const StreamSchema = new mongoose.Schema(
     chatEnabled: { type: Boolean, default: true },
     cohostIds: [{ type: ObjectId, ref: 'User' }],
 
+    // Live moderation
+    bannedUserIds: [{ type: ObjectId, ref: 'User' }], // persistent per-stream bans
+    pinnedMessageId: { type: ObjectId, ref: 'Message' }, // currently pinned chat message
+    chatSlowModeSeconds: { type: Number, default: 0, min: 0 }, // 0 = off
+
+    // Realtime viewer stats (currentViewers updated live; peak persisted)
+    currentViewers: { type: Number, default: 0 },
+
     deletedAt: { type: Date, default: null },
   },
   {
@@ -93,4 +115,5 @@ StreamSchema.index({ status: 1, recordingStatus: 1, endedAt: -1 });
 
 module.exports = mongoose.model('Stream', StreamSchema);
 module.exports.STREAM_STATUS = STREAM_STATUS;
+module.exports.STREAM_VISIBILITY = STREAM_VISIBILITY;
 module.exports.RECORDING_STATUS = RECORDING_STATUS;

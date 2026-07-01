@@ -14,6 +14,13 @@ const startServer = async () => {
   const { initSocket } = require('./socket');
   initSocket(server);
 
+  // Background job: auto-expire flash sales whose window has passed.
+  const productService = require('./modules/products/services/product.service');
+  const flashSaleJob = setInterval(() => {
+    productService.expireFlashSales().catch((err) => logger.error('Flash sale sweep failed', { error: err.message }));
+  }, 60 * 1000);
+  if (flashSaleJob.unref) flashSaleJob.unref();
+
   server.listen(PORT, () => {
     logger.info(`BidsRush API running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
   });

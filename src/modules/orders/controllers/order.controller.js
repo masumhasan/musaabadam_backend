@@ -46,6 +46,24 @@ const updateStatus = async (req, res, next) => {
   }
 };
 
+const setAddress = async (req, res, next) => {
+  try {
+    const order = await svc.setOrderAddress(req.user._id, req.params.orderId, req.body.shippingAddressSnapshot);
+    res.json({ success: true, data: { order } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const complete = async (req, res, next) => {
+  try {
+    const order = await svc.completeOrder(req.user._id, req.params.orderId);
+    res.json({ success: true, data: { order } });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const cancel = async (req, res, next) => {
   try {
     const order = await svc.cancelOrder(req.user._id, req.params.orderId, req.body);
@@ -55,4 +73,4 @@ const cancel = async (req, res, next) => {
   }
 };
 
-module.exports = { create, myOrders, sellerOrders, detail, updateStatus, cancel };
+module.exports = { create, myOrders, sellerOrders, detail, updateStatus, setAddress, complete, cancel };

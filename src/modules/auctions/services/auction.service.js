@@ -10,6 +10,8 @@ const { HTTP_STATUS, LISTING_TYPES, PRODUCT_STATUS, AUCTION } = require('../../.
 
 const currentFloor = (product) => product.currentHighBid || product.startingPrice || 0;
 
+const incrementOf = (product) => product.bidIncrement || AUCTION.MIN_INCREMENT;
+
 const publicProductState = (product) => ({
   productId: String(product._id),
   streamId: product.streamId ? String(product.streamId) : null,
@@ -18,12 +20,15 @@ const publicProductState = (product) => ({
   startingPrice: product.startingPrice,
   reservePrice: product.reservePrice,
   auctionEndsAt: product.auctionEndsAt,
+  auctionState: product.auctionState,
+  bidIncrement: incrementOf(product),
   status: product.status,
 });
 
 // Resolve standing auto-bids: after a bid lands, let other bidders' proxy bids
 // respond automatically up to their max. Bounded to avoid runaway loops.
 const resolveAutoBids = async (product) => {
+  const increment = incrementOf(product);
   for (let i = 0; i < 20; i += 1) {
     const floor = currentFloor(product);
     // Highest standing auto-bid from someone who is NOT already the leader and
@@ -33,12 +38,12 @@ const resolveAutoBids = async (product) => {
       isAutoBid: true,
       status: BID_STATUS.ACTIVE,
       bidderId: { $ne: product.highestBidderId },
-      maxAmount: { $gt: floor + AUCTION.MIN_INCREMENT - 0.0001 },
+      maxAmount: { $gt: floor + increment - 0.0001 },
     }).sort({ maxAmount: -1, createdAt: 1 });
 
     if (!contender) break;
 
-    const nextAmount = Math.min(contender.maxAmount, floor + AUCTION.MIN_INCREMENT);
+    const nextAmount = Math.min(contender.maxAmount, floor + increment);
 
     await Bid.updateMany(
       { productId: product._id, status: BID_STATUS.ACTIVE },
@@ -67,7 +72,7 @@ const resolveAutoBids = async (product) => {
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 // Seller starts (or restarts) a live auction on a product pinned to a stream.
-const startAuction = async (sellerId, { productId, streamId, durationMs, startingPrice, reservePrice }) => {
+const startAuction = async (sellerId, { productId, streamId, durationMs, startingPrice, reservePrice, bidIncrement }) => {
   const product = await Product.findOne({ _id: productId, deletedAt: null });
   if (!product) throw new AppError('Product not found', HTTP_STATUS.NOT_FOUND);
   if (!product.sellerId.equals(sellerId)) throw new AppError('Not authorized', HTTP_STATUS.FORBIDDEN);
@@ -79,9 +84,12 @@ const startAuction = async (sellerId, { productId, streamId, durationMs, startin
 
   if (startingPrice != null) product.startingPrice = Number(startingPrice);
   if (reservePrice != null) product.reservePrice = Number(reservePrice);
+  if (bidIncrement != null && Number(bidIncrement) > 0) product.bidIncrement = Number(bidIncrement);
   product.currentHighBid = 0;
   product.highestBidderId = null;
   product.auctionEndsAt = ends;
+  product.auctionState = 'running';
+  product.auctionPausedRemainingMs = undefined;
   product.status = PRODUCT_STATUS.ACTIVE;
   if (streamId) product.streamId = streamId;
   await product.save();
@@ -93,6 +101,63 @@ const startAuction = async (sellerId, { productId, streamId, durationMs, startin
   );
 
   return publicProductState(product);
+};
+
+const loadOwnedAuction = async (sellerId, productId) => {
+  const product = await Product.findOne({ _id: productId, deletedAt: null });
+  if (!product) throw new AppError('Product not found', HTTP_STATUS.NOT_FOUND);
+  if (!product.sellerId.equals(sellerId)) throw new AppError('Not authorized', HTTP_STATUS.FORBIDDEN);
+  if (product.listingType !== LISTING_TYPES.AUCTION) {
+    throw new AppError('Product is not an auction listing', HTTP_STATUS.CONFLICT);
+  }
+  return product;
+};
+
+// Pause a running auction: freeze the remaining time so it can be resumed.
+const pauseAuction = async (sellerId, productId) => {
+  const product = await loadOwnedAuction(sellerId, productId);
+  if (product.auctionState !== 'running') {
+    throw new AppError('Auction is not running', HTTP_STATUS.CONFLICT);
+  }
+  const remainingMs = Math.max(0, new Date(product.auctionEndsAt).getTime() - Date.now());
+  product.auctionState = 'paused';
+  product.auctionPausedRemainingMs = remainingMs;
+  await product.save();
+  return { ...publicProductState(product), remainingMs };
+};
+
+// Resume a paused auction: restore the remaining time from where it stopped.
+const resumeAuction = async (sellerId, productId) => {
+  const product = await loadOwnedAuction(sellerId, productId);
+  if (product.auctionState !== 'paused') {
+    throw new AppError('Auction is not paused', HTTP_STATUS.CONFLICT);
+  }
+  const remainingMs = product.auctionPausedRemainingMs || AUCTION.DEFAULT_DURATION_MS;
+  product.auctionEndsAt = new Date(Date.now() + remainingMs);
+  product.auctionState = 'running';
+  product.auctionPausedRemainingMs = undefined;
+  await product.save();
+  return publicProductState(product);
+};
+
+// Cancel an auction outright: no winner, no order. Voids outstanding bids.
+const cancelAuction = async (sellerId, productId) => {
+  const product = await loadOwnedAuction(sellerId, productId);
+  if (['none'].includes(product.auctionState) && product.status !== PRODUCT_STATUS.ACTIVE) {
+    throw new AppError('No active auction to cancel', HTTP_STATUS.CONFLICT);
+  }
+  await Bid.updateMany(
+    { productId: product._id, status: { $in: [BID_STATUS.ACTIVE, BID_STATUS.OUTBID] } },
+    { $set: { status: BID_STATUS.CANCELLED } }
+  );
+  product.auctionState = 'none';
+  product.auctionEndsAt = null;
+  product.currentHighBid = 0;
+  product.highestBidderId = null;
+  product.auctionPausedRemainingMs = undefined;
+  product.status = PRODUCT_STATUS.ENDED;
+  await product.save();
+  return { ...publicProductState(product), cancelled: true };
 };
 
 // Place a (manual or auto) bid. Returns the leading state plus whether the
@@ -111,12 +176,15 @@ const placeBid = async (bidderId, { productId, streamId, amount, maxAmount, isAu
   if (product.sellerId.equals(bidderId)) {
     throw new AppError('Sellers cannot bid on their own auction', HTTP_STATUS.FORBIDDEN);
   }
+  if (product.auctionState === 'paused') {
+    throw new AppError('Auction is paused', HTTP_STATUS.CONFLICT);
+  }
   if (!product.auctionEndsAt || new Date() > new Date(product.auctionEndsAt)) {
     throw new AppError('Auction has ended', HTTP_STATUS.GONE);
   }
 
   const floor = currentFloor(product);
-  const minRequired = floor + AUCTION.MIN_INCREMENT;
+  const minRequired = floor + incrementOf(product);
   if (bidAmount < minRequired) {
     throw new AppError(`Bid must be at least $${minRequired.toFixed(2)}`, HTTP_STATUS.CONFLICT);
   }
@@ -203,6 +271,7 @@ const closeAuction = async (productId) => {
     product.status = PRODUCT_STATUS.SOLD_OUT;
     product.quantitySold = Math.min(product.quantity, (product.quantitySold || 0) + 1);
     product.auctionEndsAt = product.auctionEndsAt || new Date();
+    product.auctionState = 'none';
     await product.save();
 
     // Pending order for the winner — paid via the payments pillar at checkout.
@@ -248,6 +317,7 @@ const closeAuction = async (productId) => {
     { $set: { status: BID_STATUS.LOST } }
   );
   product.status = PRODUCT_STATUS.ENDED;
+  product.auctionState = 'none';
   await product.save();
 
   return {
@@ -284,4 +354,13 @@ const getBidHistory = async (productId, { limit = 30 } = {}) => {
   }));
 };
 
-module.exports = { startAuction, placeBid, closeAuction, getBidHistory, publicProductState };
+module.exports = {
+  startAuction,
+  pauseAuction,
+  resumeAuction,
+  cancelAuction,
+  placeBid,
+  closeAuction,
+  getBidHistory,
+  publicProductState,
+};

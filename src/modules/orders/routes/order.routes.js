@@ -18,6 +18,8 @@ const isSeller = requireRole(ROLES.SELLER);
 router.post('/', authenticateUser, ...createOrderValidator, validate, ctrl.create);
 router.get('/my', authenticateUser, ...listOrdersValidator, validate, ctrl.myOrders);
 router.post('/:orderId/cancel', authenticateUser, ...cancelOrderValidator, validate, ctrl.cancel);
+router.post('/:orderId/complete', authenticateUser, ...orderIdParam, validate, ctrl.complete);
+router.patch('/:orderId/address', authenticateUser, ...orderIdParam, validate, ctrl.setAddress);
 
 // Seller routes — must be before /:orderId to avoid param capture issues
 router.get('/seller', authenticateUser, isSeller, ...listOrdersValidator, validate, ctrl.sellerOrders);

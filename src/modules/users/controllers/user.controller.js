@@ -10,6 +10,15 @@ const getMyProfile = async (req, res, next) => {
   }
 };
 
+const getReferralInfo = async (req, res, next) => {
+  try {
+    const info = await userService.getReferralInfo(req.user._id);
+    return success(res, info, 'Referral info');
+  } catch (err) {
+    next(err);
+  }
+};
+
 const updateMyProfile = async (req, res, next) => {
   try {
     const profile = await userService.updateProfile(req.user._id, req.body);
@@ -82,4 +91,4 @@ const applyAsSeller = async (req, res, next) => {
   }
 };
 
-module.exports = { getMyProfile, updateMyProfile, getPublicProfile, getAddresses, addAddress, updateAddress, deleteAddress, updateNotificationPreferences, applyAsSeller };
+module.exports = { getMyProfile, getReferralInfo, updateMyProfile, getPublicProfile, getAddresses, addAddress, updateAddress, deleteAddress, updateNotificationPreferences, applyAsSeller };

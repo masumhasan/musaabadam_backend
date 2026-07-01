@@ -91,6 +91,24 @@ const listPayouts = async (req, res, next) => {
   }
 };
 
+const payoutAccount = async (req, res, next) => {
+  try {
+    const account = await svc.getPayoutAccount(req.user._id);
+    return success(res, { account }, 'Payout account');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const onboardPayoutAccount = async (req, res, next) => {
+  try {
+    const result = await svc.startPayoutOnboarding(req.user._id);
+    return success(res, result, 'Payout onboarding');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   listMethods,
   addMethod,
@@ -102,4 +120,6 @@ module.exports = {
   ledger,
   requestPayout,
   listPayouts,
+  payoutAccount,
+  onboardPayoutAccount,
 };
