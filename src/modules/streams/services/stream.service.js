@@ -1,6 +1,9 @@
 const Stream = require('../../../models/Stream');
 const { STREAM_STATUS, STREAM_VISIBILITY, RECORDING_STATUS } = require('../../../models/Stream');
 const Product = require('../../../models/Product');
+const User = require('../../../models/User');
+const notificationService = require('../../notifications/services/notification.service');
+const { NOTIFICATION_TYPE } = require('../../../models/Notification');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS } = require('../../../config/constants');
 const {
@@ -109,6 +112,18 @@ const startStream = async (sellerId, streamId) => {
     : RECORDING_STATUS.NONE;
   await stream.save();
 
+  // Notify the seller's followers that the show is live.
+  const seller = await User.findById(stream.sellerId).select('username displayName avatarUrl');
+  notificationService.notifyFollowers(stream.sellerId, {
+    type: NOTIFICATION_TYPE.LIVE_STARTED,
+    title: `${seller?.displayName || seller?.username || 'A seller'} is live`,
+    body: stream.title,
+    actor: seller
+      ? { userId: String(seller._id), displayName: seller.displayName || seller.username, avatarUrl: seller.avatarUrl }
+      : null,
+    data: { streamId: stream._id },
+  });
+
   return stream;
 };
 
@@ -192,6 +207,45 @@ const getPublicStreams = async ({ status = 'live', categoryId, sellerId, page = 
   ]);
 
   return { streams, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) };
+};
+
+// ── Discovery feeds ───────────────────────────────────────────────────────────
+// feed = trending | following | recommended | live (default). All exclude
+// private shows and paginate for infinite scroll.
+const getFeed = async (userId, { feed = 'live', page = 1, limit = 20 }) => {
+  const Follower = require('../../../models/Follower');
+  const skip = (Number(page) - 1) * Number(limit);
+  const base = { deletedAt: null, visibility: { $ne: STREAM_VISIBILITY.PRIVATE }, status: STREAM_STATUS.LIVE };
+
+  let query = base;
+  let sort = { startedAt: -1 };
+
+  if (feed === 'trending') {
+    sort = { currentViewers: -1, totalViewers: -1, startedAt: -1 };
+  } else if (feed === 'following') {
+    const following = await Follower.find({ followerId: userId }).select('followingId');
+    query = { ...base, sellerId: { $in: following.map((f) => f.followingId) } };
+    sort = { startedAt: -1 };
+  } else if (feed === 'recommended') {
+    // Affinity: categories of sellers the user follows; fall back to trending.
+    const following = await Follower.find({ followerId: userId }).select('followingId');
+    const sellerIds = following.map((f) => f.followingId);
+    const cats = await Stream.distinct('categoryId', { sellerId: { $in: sellerIds }, categoryId: { $ne: null } });
+    query = cats.length ? { ...base, categoryId: { $in: cats } } : base;
+    sort = { currentViewers: -1, startedAt: -1 };
+  }
+
+  const [streams, total] = await Promise.all([
+    Stream.find(query)
+      .select(PUBLIC_SELECT)
+      .populate('sellerId', 'username displayName avatarUrl isSellerApproved')
+      .sort(sort)
+      .skip(skip)
+      .limit(Number(limit)),
+    Stream.countDocuments(query),
+  ]);
+
+  return { streams, feed, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) };
 };
 
 // ── Seller's own streams ──────────────────────────────────────────────────────
@@ -490,4 +544,5 @@ module.exports = {
   unpinProduct,
   publishStream,
   deleteStream,
+  getFeed,
 };

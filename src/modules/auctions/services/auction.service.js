@@ -3,6 +3,8 @@ const { BID_STATUS } = require('../../../models/Bid');
 const Product = require('../../../models/Product');
 const Order = require('../../../models/Order');
 const { ORDER_STATUS } = require('../../../models/Order');
+const notificationService = require('../../notifications/services/notification.service');
+const { NOTIFICATION_TYPE } = require('../../../models/Notification');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS, LISTING_TYPES, PRODUCT_STATUS, AUCTION } = require('../../../config/constants');
 
@@ -192,6 +194,9 @@ const placeBid = async (bidderId, { productId, streamId, amount, maxAmount, isAu
     throw new AppError('Max auto-bid must be greater than or equal to the bid amount', HTTP_STATUS.BAD_REQUEST);
   }
 
+  // Capture the prior leader (to notify them of being outbid) before demoting.
+  const previousLeaderId = product.highestBidderId ? String(product.highestBidderId) : null;
+
   // Demote the prior leader.
   await Bid.updateMany(
     { productId: product._id, status: BID_STATUS.ACTIVE },
@@ -230,6 +235,17 @@ const placeBid = async (bidderId, { productId, streamId, amount, maxAmount, isAu
     productId: product._id,
     status: { $in: [BID_STATUS.ACTIVE, BID_STATUS.OUTBID, BID_STATUS.WON, BID_STATUS.LOST] },
   });
+
+  // Notify the outbid user (if the leader actually changed to someone else).
+  const newLeaderId = leader?.bidderId ? String(leader.bidderId._id) : null;
+  if (previousLeaderId && previousLeaderId !== newLeaderId) {
+    notificationService.notify(previousLeaderId, {
+      type: NOTIFICATION_TYPE.OUTBID,
+      title: 'You were outbid',
+      body: `Someone bid higher on "${product.title}". Bid again to stay in the lead.`,
+      data: { productId: product._id, streamId: product.streamId ?? null },
+    });
+  }
 
   return {
     bidId: String(bid._id),
@@ -294,6 +310,14 @@ const closeAuction = async (productId) => {
       taxAmount: 0,
       totalAmount: leader.amount,
       status: ORDER_STATUS.PENDING,
+    });
+
+    // Notify the winner to complete checkout.
+    notificationService.notify(leader.bidderId._id, {
+      type: NOTIFICATION_TYPE.AUCTION_WON,
+      title: 'You won! 🎉',
+      body: `You won "${product.title}" for £${leader.amount.toFixed(2)}. Complete payment to secure it.`,
+      data: { orderId: order._id, productId: product._id, streamId: product.streamId ?? null },
     });
 
     return {

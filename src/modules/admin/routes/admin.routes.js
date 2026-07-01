@@ -82,6 +82,17 @@ router.get('/products', listProductsAdminValidator, validate, productCtrl.list);
 router.patch('/products/:productId/deactivate', ...productIdParam, validate, productCtrl.deactivate);
 router.patch('/products/:productId/activate', ...productIdParam, validate, productCtrl.activate);
 
+// ── Monitoring: orders, payouts, livestreams ─────────────────────────────────
+const monitoringCtrl = require('../controllers/admin.monitoring.controller');
+const canViewAnalytics = requireAdminPermission('VIEW_ANALYTICS');
+const canApprovePayouts = requireAdminPermission('APPROVE_PAYOUTS');
+const canTerminateStreams = requireAdminPermission('TERMINATE_STREAMS');
+
+router.get('/orders', canViewAnalytics, monitoringCtrl.listOrders);
+router.get('/payouts', canApprovePayouts, monitoringCtrl.listPayouts);
+router.get('/streams', canTerminateStreams, monitoringCtrl.listStreams);
+router.patch('/streams/:streamId/terminate', canTerminateStreams, monitoringCtrl.terminateStream);
+
 // ── Settings — legal content (any authenticated admin) ────────────────────────
 router.put('/settings/privacy-policy', updateLegalContentValidator, validate, settingsCtrl.updatePrivacyPolicy);
 router.put('/settings/terms', updateLegalContentValidator, validate, settingsCtrl.updateTerms);

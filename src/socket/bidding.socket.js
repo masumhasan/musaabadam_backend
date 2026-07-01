@@ -33,6 +33,9 @@ const registerBiddingSocket = (io) => {
   io.on('connection', (socket) => {
     logger.info(`Socket connected: ${socket.id} user: ${socket.user._id}`);
 
+    // Personal room for user-targeted realtime notifications.
+    socket.join(`user:${socket.user._id}`);
+
     // Viewer/host joins a stream room to receive bid + auction updates.
     socket.on('join-stream', async ({ streamId }) => {
       try {

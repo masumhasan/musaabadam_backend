@@ -127,6 +127,15 @@ const getStreamWebhook = async (req, res) => {
   return res.json({ success: true });
 };
 
+const feed = async (req, res, next) => {
+  try {
+    const result = await svc.getFeed(req.user._id, req.query);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const publish = async (req, res, next) => {
   try {
     const stream = await svc.publishStream(req.user._id, req.params.streamId);
@@ -183,4 +192,5 @@ module.exports = {
   unpinProduct,
   publish,
   remove,
+  feed,
 };

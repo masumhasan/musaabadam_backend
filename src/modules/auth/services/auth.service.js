@@ -155,6 +155,49 @@ const login = async ({ email, password, ipAddress, deviceInfo }) => {
   return { accessToken, refreshToken, user: user.toPrivateProfile() };
 };
 
+// Social login (Google / Apple): verify the provider ID token, find-or-create
+// the user (email pre-verified), and issue our token pair.
+const socialLogin = async ({ provider, idToken, ipAddress, deviceInfo }) => {
+  // eslint-disable-next-line global-require
+  const { verifyToken: verifySocial } = require('../../../utils/socialAuth');
+
+  let profile;
+  try {
+    profile = await verifySocial(provider, idToken);
+  } catch (err) {
+    throw new AppError('Invalid social token', HTTP_STATUS.UNAUTHORIZED);
+  }
+  if (!profile.email) throw new AppError('Social account has no email', HTTP_STATUS.BAD_REQUEST);
+
+  const normalizedEmail = profile.email.toLowerCase().trim();
+  let user = await User.findByEmail(normalizedEmail);
+
+  if (!user) {
+    let username = generateUsername(normalizedEmail);
+    if (await User.existsByUsername(username)) username = `${username}${Math.random().toString(36).slice(2, 4)}`;
+    user = await User.create({
+      email: normalizedEmail,
+      username,
+      displayName: profile.name || username,
+      avatarUrl: profile.avatar || undefined,
+      role: ROLES.BUYER,
+      permissions: [...PERMISSIONS.BUYER],
+      isEmailVerified: true,
+      authProvider: provider,
+      referralCode: await generateUniqueReferralCode(User),
+    });
+  } else if (!user.isActive || user.isBanned) {
+    throw new AppError('Your account has been suspended. Contact support.', HTTP_STATUS.FORBIDDEN);
+  }
+
+  const { accessToken, refreshToken } = buildTokenPair(user);
+  await saveRefreshToken(user._id, refreshToken, ipAddress, deviceInfo);
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  return { accessToken, refreshToken, user: user.toPrivateProfile() };
+};
+
 const refreshAccessToken = async (rawRefreshToken, ipAddress) => {
   let decoded;
   try {
@@ -348,6 +391,7 @@ const verifyPasswordChange = async (userId, otp, newPassword) => {
 
 module.exports = {
   register,
+  socialLogin,
   verifyEmail,
   resendVerification,
   login,

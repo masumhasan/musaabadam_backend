@@ -4,7 +4,9 @@ const Product = require('../../../models/Product');
 const { ORDER_STATUS } = require('../../../models/Order');
 const paymentService = require('../../payments/services/payment.service');
 const shippingService = require('../../shipping/services/shipping.service');
+const notificationService = require('../../notifications/services/notification.service');
 const ShippingProfile = require('../../../models/ShippingProfile');
+const { NOTIFICATION_TYPE } = require('../../../models/Notification');
 const { computeTax } = require('../../../utils/tax');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS } = require('../../../config/constants');
@@ -208,6 +210,23 @@ const updateOrderStatus = async (sellerId, orderId, { status, trackingNumber, tr
     } catch (err) {
       // Don't fail the status update if escrow release hiccups; it can be retried.
     }
+  }
+
+  // Notify the buyer of shipping/delivery.
+  if (status === ORDER_STATUS.SHIPPED) {
+    notificationService.notify(order.buyerId, {
+      type: NOTIFICATION_TYPE.ORDER_SHIPPED,
+      title: 'Order shipped',
+      body: order.trackingNumber ? `Tracking: ${order.trackingNumber}` : 'Your order is on its way.',
+      data: { orderId: order._id },
+    });
+  } else if (status === ORDER_STATUS.DELIVERED) {
+    notificationService.notify(order.buyerId, {
+      type: NOTIFICATION_TYPE.ORDER_DELIVERED,
+      title: 'Order delivered',
+      body: 'Your order was delivered. Tap to confirm receipt.',
+      data: { orderId: order._id },
+    });
   }
 
   return order;

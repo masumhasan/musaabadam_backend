@@ -22,6 +22,9 @@ router.get('/me/streams', authenticateUser, isSeller, ...sellerStreamsValidator,
 // Any authenticated user: browse past shows (replays) — before /:streamId
 router.get('/replays', authenticateUser, ...listReplaysValidator, validate, ctrl.listReplays);
 
+// Discovery feeds: ?feed=live|trending|following|recommended — before /:streamId
+router.get('/feed', authenticateUser, ctrl.feed);
+
 // Seller-only: create a stream
 router.post('/', authenticateUser, isSeller, ...createStreamValidator, validate, ctrl.create);
 

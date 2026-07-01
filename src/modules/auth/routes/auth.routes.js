@@ -1,5 +1,6 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const { body, param } = require('express-validator');
 const controller = require('../controllers/auth.controller');
 const validate = require('../../../middleware/validate');
 const { authenticateUser } = require('../../../middleware/auth');
@@ -37,6 +38,14 @@ router.post('/register', authLimiter, registerValidator, validate, controller.re
 router.post('/verify-email', authLimiter, verifyEmailOtpValidator, validate, controller.verifyEmail);
 router.post('/resend-verification', emailLimiter, resendVerificationValidator, validate, controller.resendVerification);
 router.post('/login', authLimiter, loginValidator, validate, controller.login);
+router.post(
+  '/social/:provider',
+  authLimiter,
+  param('provider').isIn(['google', 'apple']).withMessage('Unsupported provider'),
+  body('idToken').isString().notEmpty().withMessage('idToken is required'),
+  validate,
+  controller.socialLogin
+);
 router.post('/refresh-token', refreshTokenValidator, validate, controller.refreshToken);
 router.post('/logout', controller.logout);
 router.post('/forgot-password', emailLimiter, forgotPasswordValidator, validate, controller.forgotPassword);

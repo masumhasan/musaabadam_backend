@@ -3,6 +3,20 @@ const { success, created, error } = require('../../../utils/apiResponse');
 const { HTTP_STATUS } = require('../../../config/constants');
 const logger = require('../../../utils/logger');
 
+const socialLogin = async (req, res, next) => {
+  try {
+    const result = await authService.socialLogin({
+      provider: req.params.provider,
+      idToken: req.body.idToken,
+      ipAddress: req.ip,
+      deviceInfo: req.headers['user-agent'],
+    });
+    return res.json({ success: true, data: result, message: 'Signed in' });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const register = async (req, res, next) => {
   try {
     const { email, password, username, referralCode } = req.body;
@@ -145,4 +159,4 @@ const verifyPasswordChange = async (req, res, next) => {
   }
 };
 
-module.exports = { register, verifyEmail, resendVerification, login, refreshToken, logout, forgotPassword, verifyResetOtp, resetPassword, initiateEmailChange, verifyEmailChange, initiatePasswordChange, verifyPasswordChange };
+module.exports = { register, socialLogin, verifyEmail, resendVerification, login, refreshToken, logout, forgotPassword, verifyResetOtp, resetPassword, initiateEmailChange, verifyEmailChange, initiatePasswordChange, verifyPasswordChange };

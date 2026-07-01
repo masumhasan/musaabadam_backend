@@ -1,5 +1,7 @@
 const Follower = require('../../../models/Follower');
 const User = require('../../../models/User');
+const notificationService = require('../../notifications/services/notification.service');
+const { NOTIFICATION_TYPE } = require('../../../models/Notification');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS } = require('../../../config/constants');
 
@@ -42,6 +44,17 @@ const follow = async (followerId, targetId) => {
     User.findByIdAndUpdate(targetId, { $inc: { followersCount: 1 } }),
     User.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } }),
   ]);
+
+  // Notify the followed user.
+  const follower = await User.findById(followerId).select('username displayName avatarUrl');
+  notificationService.notify(targetId, {
+    type: NOTIFICATION_TYPE.NEW_FOLLOWER,
+    title: 'New follower',
+    body: `${follower?.displayName || follower?.username || 'Someone'} started following you`,
+    actor: follower
+      ? { userId: String(follower._id), displayName: follower.displayName || follower.username, avatarUrl: follower.avatarUrl }
+      : null,
+  });
 
   return { message: 'Followed successfully' };
 };
