@@ -201,7 +201,7 @@ const getPublicStreams = async ({ status = 'live', categoryId, sellerId, page = 
     Stream.find(query)
       .select(PUBLIC_SELECT)
       .populate('sellerId', 'username displayName avatarUrl isSellerApproved')
-      .sort(status === 'live' ? { startedAt: -1 } : { scheduledAt: 1 })
+      .sort(status === 'live' ? { startedAt: -1 } : status === 'ended' ? { endedAt: -1 } : { scheduledAt: 1 })
       .skip(skip)
       .limit(Number(limit)),
     Stream.countDocuments(query),
