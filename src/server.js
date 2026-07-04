@@ -21,6 +21,14 @@ const startServer = async () => {
   }, 60 * 1000);
   if (flashSaleJob.unref) flashSaleJob.unref();
 
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      logger.error(`Port ${PORT} is already in use. Change PORT in .env or kill the blocking process.`);
+      process.exit(1);
+    }
+    throw err;
+  });
+
   server.listen(PORT, () => {
     logger.info(`BidsRush API running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
   });
