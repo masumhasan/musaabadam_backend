@@ -43,6 +43,7 @@ const createStream = async (seller, data) => {
       created_by_id: String(seller._id),
       custom: { title: data.title, sellerId: String(seller._id) },
       settings_override: {
+        backstage: { enabled: false },
         broadcasting: { enabled: true },
         recording: RECORDING_SETTINGS,
       },
@@ -316,7 +317,11 @@ const createAuctionStream = async (seller, data) => {
     data: {
       created_by_id: String(seller._id),
       custom: { title: data.title, sellerId: String(seller._id), isAuction: true },
-      settings_override: { broadcasting: { enabled: true }, recording: RECORDING_SETTINGS },
+      settings_override: {
+        backstage: { enabled: false },
+        broadcasting: { enabled: true },
+        recording: RECORDING_SETTINGS,
+      },
     },
   });
 
