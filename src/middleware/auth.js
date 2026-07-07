@@ -5,6 +5,7 @@ const { HTTP_STATUS } = require('../config/constants');
 
 // Verifies JWT access token, attaches req.user with full Mongoose document
 const authenticateUser = async (req, res, next) => {
+  if (req.method === 'OPTIONS') return next();
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -55,6 +56,7 @@ const requirePermission = (permission) => (req, res, next) => {
 
 // Verifies admin JWT access token, attaches req.admin
 const authenticateAdmin = async (req, res, next) => {
+  if (req.method === 'OPTIONS') return next();
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
