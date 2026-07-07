@@ -100,13 +100,18 @@ const getPublicProducts = async (filters = {}, pagination = {}) => {
   const {
     category, listingType, condition, search,
     minPrice, maxPrice, sellerId,
-    status = PRODUCT_STATUS.ACTIVE, sort = 'newest',
+    status, sort = 'newest',
   } = filters;
 
   const safePage = Math.max(1, parseInt(pagination.page) || 1);
   const safeLimit = Math.min(50, Math.max(1, parseInt(pagination.limit) || 20));
 
-  const query = { deletedAt: null, status };
+  const query = { deletedAt: null };
+  if (status === 'all') {
+    query.status = { $ne: PRODUCT_STATUS.DRAFT };
+  } else {
+    query.status = status || PRODUCT_STATUS.ACTIVE;
+  }
   if (category) query.category = new RegExp(category, 'i');
   if (listingType) query.listingType = listingType;
   if (condition) query.condition = condition;

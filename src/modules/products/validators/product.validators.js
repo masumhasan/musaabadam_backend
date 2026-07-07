@@ -81,7 +81,7 @@ const listProductsValidator = [
   query('category').optional().trim().isLength({ min: 1, max: 100 }),
   query('listingType').optional().isIn(Object.values(LISTING_TYPES)),
   query('condition').optional().isIn(Object.values(PRODUCT_CONDITIONS)),
-  query('status').optional().isIn(Object.values(PRODUCT_STATUS)),
+  query('status').optional().isIn([...Object.values(PRODUCT_STATUS), 'all']),
   query('search').optional().trim().isLength({ min: 1, max: 200 }),
   query('minPrice').optional().isFloat({ min: 0 }),
   query('maxPrice').optional().isFloat({ min: 0 }),
