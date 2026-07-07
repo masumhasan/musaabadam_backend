@@ -538,7 +538,33 @@ const unpinProduct = async (sellerId, streamId, productId) => {
   return { streamId: String(stream._id), productId: String(productId) };
 };
 
+const sendPreShowReminders = async () => {
+  const now = new Date();
+  const fifteenMinutesFromNow = new Date(now.getTime() + 15 * 60 * 1000);
+
+  const streams = await Stream.find({
+    status: STREAM_STATUS.SCHEDULED,
+    scheduledAt: { $gte: now, $lte: fifteenMinutesFromNow },
+    reminded15Min: { $ne: true },
+    deletedAt: null,
+  }).populate('sellerId', 'username displayName');
+
+  for (const stream of streams) {
+    stream.reminded15Min = true;
+    await stream.save();
+
+    const sellerName = stream.sellerId.displayName || stream.sellerId.username || 'Seller';
+    await notificationService.notifyFollowers(stream.sellerId._id, {
+      type: NOTIFICATION_TYPE.STREAM_REMINDER,
+      title: 'Upcoming Show! 🔔',
+      body: `"${stream.title}" by ${sellerName} starts in 15 minutes!`,
+      data: { streamId: stream._id },
+    });
+  }
+};
+
 module.exports = {
+  sendPreShowReminders,
   createStream,
   createAuctionStream,
   updateStream,

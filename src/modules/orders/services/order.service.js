@@ -273,4 +273,27 @@ const cancelOrder = async (buyerId, orderId, { cancelReason } = {}) => {
   return order;
 };
 
-module.exports = { createOrder, setOrderAddress, getBuyerOrders, getSellerOrders, getOrder, updateOrderStatus, completeOrder, cancelOrder };
+const autoReleaseEscrow = async () => {
+  // Auto-complete orders that have been DELIVERED for more than 3 days
+  const threshold = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+  const orders = await Order.find({
+    status: ORDER_STATUS.DELIVERED,
+    deliveredAt: { $lt: threshold },
+  });
+
+  for (const order of orders) {
+    order.status = ORDER_STATUS.COMPLETED;
+    order.completedAt = new Date();
+    await order.save();
+
+    if (order.isPaid) {
+      try {
+        await paymentService.releaseEscrow(order._id);
+      } catch (err) {
+        console.error(`Auto-release escrow failed for order ${order._id}:`, err.message);
+      }
+    }
+  }
+};
+
+module.exports = { createOrder, setOrderAddress, getBuyerOrders, getSellerOrders, getOrder, updateOrderStatus, completeOrder, cancelOrder, autoReleaseEscrow };

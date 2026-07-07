@@ -21,6 +21,20 @@ const startServer = async () => {
   }, 60 * 1000);
   if (flashSaleJob.unref) flashSaleJob.unref();
 
+  // Background job: send pre-show reminders for scheduled streams starting in 15 mins.
+  const streamService = require('./modules/streams/services/stream.service');
+  const reminderJob = setInterval(() => {
+    streamService.sendPreShowReminders().catch((err) => logger.error('Pre-show reminder sweep failed', { error: err.message }));
+  }, 60 * 1000);
+  if (reminderJob.unref) reminderJob.unref();
+
+  // Background job: auto-release escrow for delivered orders after 3 days.
+  const orderService = require('./modules/orders/services/order.service');
+  const escrowJob = setInterval(() => {
+    orderService.autoReleaseEscrow().catch((err) => logger.error('Escrow sweep failed', { error: err.message }));
+  }, 60 * 1000);
+  if (escrowJob.unref) escrowJob.unref();
+
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
       logger.error(`Port ${PORT} is already in use. Change PORT in .env or kill the blocking process.`);

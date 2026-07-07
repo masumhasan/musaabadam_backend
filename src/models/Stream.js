@@ -53,6 +53,7 @@ const StreamSchema = new mongoose.Schema(
 
     // Timing
     scheduledAt: { type: Date },
+    reminded15Min: { type: Boolean, default: false },
     startedAt: { type: Date },
     endedAt: { type: Date },
 

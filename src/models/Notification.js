@@ -5,6 +5,7 @@ const { ObjectId } = mongoose.Schema.Types;
 // Notification categories. Kept broad; `data` carries the deep-link refs.
 const NOTIFICATION_TYPE = Object.freeze({
   LIVE_STARTED: 'live_started',
+  STREAM_REMINDER: 'stream_reminder',
   AUCTION_STARTED: 'auction_started',
   OUTBID: 'outbid',
   AUCTION_WON: 'auction_won',

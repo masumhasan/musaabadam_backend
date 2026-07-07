@@ -6,7 +6,8 @@ const { ORDER_STATUS } = require('../../../models/Order');
 const notificationService = require('../../notifications/services/notification.service');
 const { NOTIFICATION_TYPE } = require('../../../models/Notification');
 const { AppError } = require('../../../middleware/errorHandler');
-const { HTTP_STATUS, LISTING_TYPES, PRODUCT_STATUS, AUCTION } = require('../../../config/constants');
+const paymentService = require('../../payments/services/payment.service');
+const PaymentMethod = require('../../../models/PaymentMethod');
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -290,7 +291,7 @@ const closeAuction = async (productId) => {
     product.auctionState = 'none';
     await product.save();
 
-    // Pending order for the winner — paid via the payments pillar at checkout.
+    // Pending order for the winner — paid via the payments pillar at checkout or auto-charged.
     const order = await Order.create({
       buyerId: leader.bidderId._id,
       sellerId: product.sellerId,
@@ -312,11 +313,38 @@ const closeAuction = async (productId) => {
       status: ORDER_STATUS.PENDING,
     });
 
-    // Notify the winner to complete checkout.
+    // Auto-charge payment on win if the buyer has a default payment method saved
+    let autoChargeSuccess = false;
+    try {
+      const defaultPm = await PaymentMethod.findOne({
+        userId: leader.bidderId._id,
+        isDefault: true,
+        deletedAt: null,
+      });
+
+      if (defaultPm) {
+        // Create checkout intent
+        await paymentService.createCheckout(leader.bidderId._id, order._id, {
+          paymentMethodId: defaultPm._id,
+        });
+        // Confirm checkout payment intent (this captures payment and updates order status to paid / processing)
+        await paymentService.confirmPayment(leader.bidderId._id, order._id, {
+          paymentMethodId: defaultPm._id,
+        });
+        autoChargeSuccess = true;
+      }
+    } catch (paymentErr) {
+      // Log payment capture failure and proceed to let user checkout manually
+      console.error(`Auto-charge failed for order ${order._id}:`, paymentErr.message);
+    }
+
+    // Notify the winner.
     notificationService.notify(leader.bidderId._id, {
       type: NOTIFICATION_TYPE.AUCTION_WON,
-      title: 'You won! 🎉',
-      body: `You won "${product.title}" for £${leader.amount.toFixed(2)}. Complete payment to secure it.`,
+      title: autoChargeSuccess ? 'Auction Won & Paid! 🎉' : 'You won! 🎉',
+      body: autoChargeSuccess
+        ? `You won "${product.title}" for £${leader.amount.toFixed(2)}. Your default card has been successfully charged.`
+        : `You won "${product.title}" for £${leader.amount.toFixed(2)}. Complete payment to secure it.`,
       data: { orderId: order._id, productId: product._id, streamId: product.streamId ?? null },
     });
 
