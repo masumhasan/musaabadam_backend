@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const DirectMessage = require('../../../models/DirectMessage');
 const User = require('../../../models/User');
 const { HTTP_STATUS } = require('../../../config/constants');
-const AppError = require('../../../utils/AppError');
+const { AppError } = require('../../../middleware/errorHandler');
 
 const sendMessage = async (senderId, receiverId, text) => {
   if (senderId.toString() === receiverId.toString()) {
