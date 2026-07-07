@@ -104,6 +104,7 @@ app.use('/api/v1/giveaways', require('./modules/giveaways/routes/giveaway.routes
 app.use('/api/v1/reports', require('./modules/reports/routes/report.routes'));
 app.use('/api/v1/favorites', require('./modules/favorites/routes/favorite.routes'));
 app.use('/api/v1/analytics', require('./modules/analytics/routes/analytics.routes'));
+app.use('/api/v1/dms', require('./modules/dms/routes/dm.routes'));
 
 // ─── 404 & Error Handling ─────────────────────────────────────────────────────
 
