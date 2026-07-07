@@ -469,6 +469,15 @@ const ingestRecording = async (callId, recording) => {
     }
     await stream.save();
     logger.info(`recording_ready: stored replay for stream ${stream._id} at ${key}`);
+
+    // Notify the seller that their stream recording is ready.
+    notificationService.notify(stream.sellerId, {
+      type: NOTIFICATION_TYPE.RECORDING_READY,
+      title: 'Stream Recording Ready! 🎥',
+      body: `Your recording for "${stream.title}" is processed and ready for playback.`,
+      data: { streamId: stream._id },
+    });
+
     return stream;
   } catch (err) {
     logger.error(`recording_ready: failed to store recording for ${stream._id}: ${err.message}`);

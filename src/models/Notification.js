@@ -6,6 +6,7 @@ const { ObjectId } = mongoose.Schema.Types;
 const NOTIFICATION_TYPE = Object.freeze({
   LIVE_STARTED: 'live_started',
   STREAM_REMINDER: 'stream_reminder',
+  RECORDING_READY: 'recording_ready',
   AUCTION_STARTED: 'auction_started',
   OUTBID: 'outbid',
   AUCTION_WON: 'auction_won',
