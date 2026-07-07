@@ -82,7 +82,7 @@ const generatePresignedUploadUrl = async ({ folder, contentType, fileSize }) => 
  * @param {string} [opts.contentType]  Defaults to 'video/mp4'
  * @param {string} [opts.ext]          File extension without dot (defaults to 'mp4')
  */
-const uploadRemoteFileToS3 = async ({ sourceUrl, folder, keyPrefix, contentType = 'video/mp4', ext = 'mp4' }) => {
+const uploadRemoteFileToS3 = async ({ sourceUrl, folder, keyPrefix, filename, contentType = 'video/mp4', ext = 'mp4' }) => {
   if (!FOLDER_PATHS[folder]) {
     throw new AppError(`Invalid folder. Allowed: ${Object.keys(FOLDER_PATHS).join(', ')}`, HTTP_STATUS.BAD_REQUEST);
   }
@@ -94,7 +94,8 @@ const uploadRemoteFileToS3 = async ({ sourceUrl, folder, keyPrefix, contentType 
     throw new AppError(`Failed to fetch source file (status ${res.status})`, HTTP_STATUS.BAD_REQUEST);
   }
 
-  const segments = [FOLDER_PATHS[folder], keyPrefix, `${uuidv4()}.${ext}`].filter(Boolean);
+  const name = filename || `${uuidv4()}.${ext}`;
+  const segments = [FOLDER_PATHS[folder], keyPrefix, name].filter(Boolean);
   const key = segments.join('/');
   const contentLength = res.headers.get('content-length');
 

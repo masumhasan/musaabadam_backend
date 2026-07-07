@@ -446,10 +446,14 @@ const ingestRecording = async (callId, recording) => {
   }
 
   try {
+    const sanitizedTitle = stream.title.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 50);
+    const filename = `recording_${sanitizedTitle}_${stream._id}.mp4`;
+
     const { key, publicUrl } = await uploadRemoteFileToS3({
       sourceUrl,
       folder: 'stream_recording',
       keyPrefix: String(stream._id),
+      filename,
     });
 
     // Replace any prior recording file (e.g. a re-recorded session).
