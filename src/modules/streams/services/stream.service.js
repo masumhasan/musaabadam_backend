@@ -397,7 +397,7 @@ const getReplay = async (streamId) => {
 
   if (stream.recordingStatus !== RECORDING_STATUS.READY || isPlaceholder) {
     // For demo/testing: if no valid recording exists, return a default sample video
-    const fallbackUrl = 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+    const fallbackUrl = 'https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/classroom.mp4';
     return {
       streamId: stream._id,
       recordingUrl: fallbackUrl,
