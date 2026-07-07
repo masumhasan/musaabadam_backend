@@ -378,6 +378,26 @@ const getBidHistory = async (productId, { limit = 30 } = {}) => {
   }));
 };
 
+const getUserBids = async (userId, { page = 1, limit = 20 } = {}) => {
+  const safePage = Math.max(1, parseInt(page) || 1);
+  const safeLimit = Math.min(50, Math.max(1, parseInt(limit) || 20));
+
+  const [bids, total] = await Promise.all([
+    Bid.find({ bidderId: userId })
+      .sort({ createdAt: -1 })
+      .skip((safePage - 1) * safeLimit)
+      .limit(safeLimit)
+      .populate('productId', 'title price images sellerId status')
+      .populate({
+        path: 'productId',
+        populate: { path: 'sellerId', select: 'username displayName avatarUrl' }
+      }),
+    Bid.countDocuments({ bidderId: userId }),
+  ]);
+
+  return { bids, pagination: { total, page: safePage, limit: safeLimit, pages: Math.ceil(total / safeLimit) } };
+};
+
 module.exports = {
   startAuction,
   pauseAuction,
@@ -387,4 +407,5 @@ module.exports = {
   closeAuction,
   getBidHistory,
   publicProductState,
+  getUserBids,
 };

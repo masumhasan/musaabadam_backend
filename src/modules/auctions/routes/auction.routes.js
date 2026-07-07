@@ -14,6 +14,7 @@ const router = Router();
 const isSeller = requireRole(ROLES.SELLER);
 
 // Seller controls
+router.get('/my', authenticateUser, ctrl.myBids);
 router.post('/start', authenticateUser, isSeller, ...startAuctionValidator, validate, ctrl.startAuction);
 router.post('/:productId/pause', authenticateUser, isSeller, ...productIdParam, validate, ctrl.pauseAuction);
 router.post('/:productId/resume', authenticateUser, isSeller, ...productIdParam, validate, ctrl.resumeAuction);

@@ -88,4 +88,13 @@ const bidHistory = async (req, res, next) => {
   }
 };
 
-module.exports = { startAuction, pauseAuction, resumeAuction, cancelAuction, placeBid, closeAuction, bidHistory };
+const myBids = async (req, res, next) => {
+  try {
+    const data = await svc.getUserBids(req.user._id, req.query);
+    return success(res, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { startAuction, pauseAuction, resumeAuction, cancelAuction, placeBid, closeAuction, bidHistory, myBids };
