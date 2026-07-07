@@ -15,8 +15,7 @@ const app = express();
 app.use(helmet());
 
 const isDevOrigin = (origin) => {
-  if (!origin) return true;
-  return /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin);
+  return true;
 };
 
 const resolveOrigin = (origin, callback) => {
