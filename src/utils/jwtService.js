@@ -34,7 +34,7 @@ const verifyToken = (token) => jwt.verify(token, secret());
 
 const generateAdminAccessToken = (payload) =>
   jwt.sign({ ...payload, aud: 'admin' }, adminSecret(), {
-    expiresIn: process.env.ADMIN_JWT_EXPIRY || '8h',
+    expiresIn: process.env.ADMIN_JWT_EXPIRY || '30d',
   });
 
 const verifyAdminToken = (token) =>

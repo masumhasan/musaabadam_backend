@@ -148,7 +148,7 @@ const AUCTION = Object.freeze({
 
 const JWT_EXPIRY = Object.freeze({
   ACCESS: '15m',
-  REFRESH: '7d',
+  REFRESH: '30d',
   EMAIL_VERIFY: '24h',
 });
 

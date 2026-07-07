@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const REFRESH_TTL_DAYS = 7;
+const REFRESH_TTL_DAYS = 30;
 
 const RefreshTokenSchema = new mongoose.Schema(
   {
