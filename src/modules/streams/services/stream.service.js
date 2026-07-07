@@ -392,9 +392,12 @@ const getReplay = async (streamId) => {
     .populate('categoryId', 'name slug');
   if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
 
-  if (stream.recordingStatus !== RECORDING_STATUS.READY || !stream.recordingUrl) {
-    // For demo/testing: if no recording exists, return a default sample video
-    const fallbackUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+  let videoUrl = stream.recordingUrl;
+  const isPlaceholder = !videoUrl || videoUrl.includes('test-bucket') || videoUrl.includes('example.com');
+
+  if (stream.recordingStatus !== RECORDING_STATUS.READY || isPlaceholder) {
+    // For demo/testing: if no valid recording exists, return a default sample video
+    const fallbackUrl = 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
     return {
       streamId: stream._id,
       recordingUrl: fallbackUrl,
@@ -410,7 +413,7 @@ const getReplay = async (streamId) => {
 
   return {
     streamId: stream._id,
-    recordingUrl: stream.recordingUrl,
+    recordingUrl: videoUrl,
     recordingStatus: stream.recordingStatus,
     recordingDurationSeconds: stream.recordingDurationSeconds ?? null,
     stream: stream.toObject(),
