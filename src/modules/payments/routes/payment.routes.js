@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { authenticateUser, requireRole } = require('../../../middleware/auth');
+const { authenticateUser, requireRole, authenticateAdmin } = require('../../../middleware/auth');
 const validate = require('../../../middleware/validate');
 const { ROLES } = require('../../../config/constants');
 const ctrl = require('../controllers/payment.controller');
@@ -43,8 +43,8 @@ router.get('/rewards', authenticateUser, rewardCtrl.listRewards);
 router.post('/rewards/claim-challenge', authenticateUser, rewardCtrl.claimChallengeReward);
 
 // Admin rewards endpoints
-router.get('/rewards/admin/list', authenticateUser, rewardCtrl.adminListRewards);
-router.post('/rewards/admin/create', authenticateUser, rewardCtrl.adminCreateReward);
-router.delete('/rewards/admin/:id', authenticateUser, rewardCtrl.adminDeleteReward);
+router.get('/rewards/admin/list', authenticateAdmin, rewardCtrl.adminListRewards);
+router.post('/rewards/admin/create', authenticateAdmin, rewardCtrl.adminCreateReward);
+router.delete('/rewards/admin/:id', authenticateAdmin, rewardCtrl.adminDeleteReward);
 
 module.exports = router;
