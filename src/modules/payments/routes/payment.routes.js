@@ -3,6 +3,7 @@ const { authenticateUser, requireRole } = require('../../../middleware/auth');
 const validate = require('../../../middleware/validate');
 const { ROLES } = require('../../../config/constants');
 const ctrl = require('../controllers/payment.controller');
+const rewardCtrl = require('../controllers/reward.controller');
 const {
   methodIdParam,
   addMethodValidator,
@@ -36,5 +37,14 @@ router.post('/payouts', authenticateUser, isSeller, ...payoutValidator, validate
 // ── Payout account onboarding (Stripe Connect / mock) ────────────────────────
 router.get('/payout-account', authenticateUser, isSeller, ctrl.payoutAccount);
 router.post('/payout-account/onboard', authenticateUser, isSeller, ctrl.onboardPayoutAccount);
+
+// ── Rewards / Coupons ────────────────────────────────────────────────────────
+router.get('/rewards', authenticateUser, rewardCtrl.listRewards);
+router.post('/rewards/claim-challenge', authenticateUser, rewardCtrl.claimChallengeReward);
+
+// Admin rewards endpoints
+router.get('/rewards/admin/list', authenticateUser, rewardCtrl.adminListRewards);
+router.post('/rewards/admin/create', authenticateUser, rewardCtrl.adminCreateReward);
+router.delete('/rewards/admin/:id', authenticateUser, rewardCtrl.adminDeleteReward);
 
 module.exports = router;

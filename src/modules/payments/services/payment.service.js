@@ -95,8 +95,9 @@ const deletePaymentMethod = async (userId, methodId) => {
 // ─── Checkout / escrow ──────────────────────────────────────────────────────
 
 // Create a payment intent for an order. Returns the client secret for the app
+// Create a payment intent for an order. Returns the client secret for the app
 // to confirm (or the app can confirm server-side via confirmPayment).
-const createCheckout = async (buyerId, orderId, { paymentMethodId } = {}) => {
+const createCheckout = async (buyerId, orderId, { paymentMethodId, couponId } = {}) => {
   const order = await Order.findById(orderId);
   if (!order) throw new AppError('Order not found', HTTP_STATUS.NOT_FOUND);
   if (!order.buyerId.equals(buyerId)) throw new AppError('Not authorized', HTTP_STATUS.FORBIDDEN);
@@ -111,7 +112,25 @@ const createCheckout = async (buyerId, orderId, { paymentMethodId } = {}) => {
     if (!pm) throw new AppError('Payment method not found', HTTP_STATUS.NOT_FOUND);
   }
 
-  const amount = round2(order.totalAmount);
+  let coupon = null;
+  let discountAmount = 0;
+  if (couponId) {
+    const Reward = require('../../../models/Reward');
+    coupon = await Reward.findOne({ _id: couponId, userId: buyerId, isUsed: false });
+    if (!coupon) throw new AppError('Coupon not found or already used', HTTP_STATUS.NOT_FOUND);
+    if (!coupon.isValidForOrder(order.totalAmount)) {
+      throw new AppError('Coupon is expired or order total does not meet minimum order value', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    if (coupon.discountType === 'fixed') {
+      discountAmount = Math.min(coupon.discountValue, order.totalAmount);
+    } else if (coupon.discountType === 'percentage') {
+      discountAmount = round2((order.totalAmount * coupon.discountValue) / 100);
+    }
+  }
+
+  const originalAmount = round2(order.totalAmount);
+  const amount = round2(Math.max(0, originalAmount - discountAmount));
   const platformFee = round2((amount * PAYMENT.PLATFORM_FEE_PERCENT) / 100);
   const sellerNet = round2(amount - platformFee);
 
@@ -130,6 +149,8 @@ const createCheckout = async (buyerId, orderId, { paymentMethodId } = {}) => {
     payment.platformFee = platformFee;
     payment.sellerNet = sellerNet;
     payment.paymentMethodId = pm?._id ?? null;
+    payment.couponId = coupon?._id ?? null;
+    payment.discountAmount = discountAmount;
     await payment.save();
   } else {
     payment = await Payment.create({
@@ -139,6 +160,8 @@ const createCheckout = async (buyerId, orderId, { paymentMethodId } = {}) => {
       provider: provider.name,
       providerIntentId: intent.id,
       paymentMethodId: pm?._id ?? null,
+      couponId: coupon?._id ?? null,
+      discountAmount,
       currency: PAYMENT.CURRENCY,
       amount,
       platformFee,
@@ -183,6 +206,11 @@ const confirmPayment = async (buyerId, orderId, { paymentMethodId } = {}) => {
   payment.escrowStatus = ESCROW_STATUS.HELD;
   payment.capturedAt = new Date();
   await payment.save();
+
+  if (payment.couponId) {
+    const Reward = require('../../../models/Reward');
+    await Reward.updateOne({ _id: payment.couponId }, { $set: { isUsed: true, usedAt: new Date() } });
+  }
 
   // Funds held in escrow → seller's pending balance.
   await applyLedger(order.sellerId, {

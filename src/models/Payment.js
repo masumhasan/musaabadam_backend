@@ -14,6 +14,8 @@ const PaymentSchema = new mongoose.Schema(
     provider: { type: String, default: 'mock' },
     providerIntentId: { type: String }, // Stripe PaymentIntent id
     paymentMethodId: { type: ObjectId, ref: 'PaymentMethod' },
+    couponId: { type: ObjectId, ref: 'Reward' },
+    discountAmount: { type: Number, default: 0 },
 
     currency: { type: String, default: 'gbp' },
     amount: { type: Number, required: true, min: 0 }, // gross charged to buyer
