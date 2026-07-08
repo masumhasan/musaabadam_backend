@@ -1,0 +1,527 @@
+﻿Old documentation features list 
+
+
+Buyer/User Features
+* User registration and login (email, phone, social media)
+
+* Profile creation with bio and preferences
+
+* Account verification system by email
+
+* Privacy settings and security options
+
+* Notification preferences
+
+* Wishlist and favorites management
+
+* Purchase history and order tracking
+
+* Payment method management (credit cards, Stripe)
+
+* Shipping address management
+
+   * Browse live streams by category, seller, or trending
+
+   * Join live auctions and bidding
+
+   * Real-time chat participation during streams
+
+   * Emoji reactions and interactive features
+
+   * Follow favorite sellers and get notifications
+
+   * Stream quality adjustment
+
+   * Full-screen viewing mode
+
+   * Picture-in-picture mode for multitasking
+
+      * Live auction bidding with auto-bid functionality
+
+      * Buy-it-now marketplace purchases
+
+      * Bundle deals and combo offers
+
+      * Price alerts and push notifications
+
+      * Quick purchase with saved payment methods
+
+      * Guest checkout option
+
+      * Order confirmation and receipts
+
+      * Return and refund requests
+
+      * Dispute resolution system
+
+      * Buyer protection guarantees (shown in privacy section)
+
+         * Follow/unfollow sellers
+
+         * Share streams on social media
+
+         * Invite friends to watch streams
+
+         * Comment and chat moderation
+
+         * Private messaging with sellers (only after a purchase, with a 10-day window after delivery)
+
+         * Review and rating system
+
+            * Seller application and approval process
+
+            * Business verification and tax documentation
+
+            * Bank account setup for payouts
+
+            * Seller profile customization
+
+            * Category selection and specialization
+
+            * Seller badge and verification status
+
+            * Performance metrics dashboard
+
+            * Seller academy access and training materials (video or PowerPoint presentation)
+
+               * Go live instantly or schedule streams
+
+               * Stream title, description, and category setup
+
+               * Stream thumbnails and branding
+
+               * Auto-restart failed streams (permission)
+
+               * Stream analytics and viewer insights
+
+
+               * Live chat moderation tools
+
+               * Viewer engagement metrics
+
+               * Polls and Q&A sessions
+
+               * Co-host invitations (by giveaways)
+
+               * Moderator assignment and management
+
+               * Viewer timeout and ban controls
+
+
+                  * Individual product listing
+
+                  * High-quality photo and video uploads
+
+                  * Product descriptions and specifications
+
+                  * Category and tag assignment
+
+                  * Pricing strategies (auction vs fixed price)
+
+                  * Inventory tracking and low stock alerts
+
+                  * Product variations (size, color, condition)
+
+                  * Starting bid and reserve price setting
+
+                  * Auction duration and timer controls
+
+                  * Live item presentation and showcasing
+
+                  * Real-time bid monitoring
+
+                  * Bid increment customization
+
+                  * Buy-it-now options during auctions
+
+                  * Unsold item management
+
+                  * Auction history and analytics
+
+
+                     * Real-time order notifications
+
+                     * Order details and buyer information
+
+                     * Bulk order processing
+
+                     * Order status updates
+
+                     * Customer communication tools
+
+                     * Order bundling and unbundling
+
+                     * Special handling instructions
+
+                     * Rush order management
+
+
+                     * Shipping profile creation and management
+
+                     * Multiple shipping options (standard, expedited, overnight)
+
+                     * Shipping calculator integration
+
+                     * Label printing and tracking
+
+                     * Packaging guidelines and requirements
+
+                     * International shipping support
+
+                     * Shipping insurance options
+
+                     * Return shipping management
+
+                     * Carrier integration (DPD, Royal Mail) [Royal Mail default is only for the UK]
+
+                        * Sales performance dashboards
+
+                        * Revenue tracking and forecasting
+
+                        * Audience demographics and insights
+
+                        * Product performance analytics
+
+                        * Shipping and fulfillment metrics
+
+                        * Customer satisfaction scores
+
+                        * Stream performance data
+
+                        * Seasonal trend analysis
+
+                        * Tax reporting and documentation
+
+                        * Payout history and earnings tracking
+
+                           * Promotional campaigns and discounts
+
+                              * Account administration (create, suspend, block/unblock, delete)
+
+                              * Account recovery
+
+                              * Fraud detection and prevention
+
+                              * Identity verification management
+
+                                 * Seller application review and approval
+
+                                 * Seller onboarding and training coordination (note: rehearsal mode)
+
+                                 * Tax compliance monitoring (by percentage)
+
+                                    * Content moderation and policy enforcement
+
+                                    * Inappropriate content flagging and removal
+
+                                    * Stream quality monitoring
+
+                                    * Technical issue resolution (by support)
+
+
+                                       * Server performance monitoring (by server login credentials)
+
+
+
+
+                                          * User engagement analytics
+
+                                          * Revenue and financial reporting
+
+                                          * Compliance and audit reporting
+
+
+
+
+                                             * Fee structure management and updates
+
+                                             * Payment processor integration and monitoring
+
+                                             * Legal compliance and policy updates
+
+Customer support team coordination
+
+
+
+New features list
+
+
+
+ 
+Stream replay / VOD (past live shows)
+
+
+Scheduled stream reminders (calendar + push)
+
+
+In-stream pinned products
+
+
+Giveaways / lucky draw system
+
+
+Mystery box / spin-the-wheel games
+
+
+In-app wallet & balance system
+
+
+Platform escrow system (payment hold)
+
+
+Seller subscription / tier system
+
+
+Loyalty points & rewards program
+
+
+Referral & affiliate system
+
+
+Tips / donations to sellers
+
+
+Automated seller level & ranking
+
+
+Transparent fee breakdown per order
+
+
+Chargeback & risk management tools
+
+
+AI-based chat moderation
+
+
+Age-restricted / geo-blocked streams
+
+
+Region-based tax automation (VAT/GST)
+
+
+Customs & duties calculation (international)
+
+
+Auto payouts schedule (daily/weekly)
+
+
+Seller-to-seller co-streaming
+
+
+Stream clips & highlights sharing
+
+
+Platform-wide flash drops
+
+
+In-app announcements & banners
+
+
+Advanced fraud scoring system
+
+
+In-app coins / credits system
+
+
+Buyer–seller escrow release rules
+
+
+Automatic bid anti-sniping protection
+
+
+Shadow ban & soft moderation tools
+
+
+Seller strike / warning system
+
+
+Community guidelines enforcement engine
+
+
+Stream delay control (anti-abuse)
+
+
+Seller cancellation rate tracking
+
+
+Buyer cancellation abuse detection
+
+
+Smart bundle recommendation (AI-based)
+
+
+Personalized home feed (ML-driven)
+
+
+“Trending now” algorithm
+
+
+Category-based stream boosting
+
+
+Seller boost / paid promotion slots
+
+
+Featured seller rotation system
+
+
+Seller cooldown limits (stream frequency control)
+
+
+Auto product queue during live stream
+
+
+One-tap re-list unsold items
+
+
+Seller draft listings
+
+
+Bulk product import (CSV)
+
+
+Barcode scanning for inventory
+
+
+Condition grading standards (cards, sneakers, etc.)
+
+
+Category-specific compliance checks
+
+
+Live countdown & urgency indicators
+
+
+Buyer spending limits / parental control
+
+
+Age verification for restricted categories
+
+
+Region lock for sellers or buyers
+
+
+Seller vacation / pause mode
+
+
+Automatic dispute escalation rules
+
+
+Mediation workflow for disputes
+
+
+Partial refunds & adjustments
+
+
+Store credit refunds
+
+
+Platform announcements per category
+
+
+In-app system messages (maintenance, alerts)
+
+
+Seller SLA (response time tracking)
+
+
+Buyer trust score
+
+
+Seller trust score
+
+
+Verified buyer badge
+
+
+Seller brand storefront pages
+
+
+Custom seller URL / vanity link
+
+
+SEO-friendly web listings
+
+
+Web-to-app deep linking
+
+
+Accessibility features (captions, screen reader support)
+
+
+Stream captions / live subtitles
+
+
+Network fallback for low bandwidth
+
+
+Stream health diagnostics for sellers
+
+
+Crash reporting & error logs
+
+
+A/B testing framework (admin)
+
+
+Feature flag management (admin)
+
+
+Marketing & Growth
+
+
+Influencer onboarding tools
+
+
+Creator invite codes
+
+
+Drop campaigns (limited-time items)
+
+
+Waitlists & early access
+
+
+Cross-stream promotions
+
+
+Seller collaboration discovery
+
+
+Dynamic referral rewards
+
+
+Re-engagement email automation
+
+
+Admin / Platform (Advanced)
+
+
+Global kill switch (feature shutdown)
+
+
+Regional feature toggles
+
+
+Marketplace health score
+
+
+Seller supply–demand balancing
+
+
+Queue-based dispute handling
+
+
+Automated policy enforcement rules
+
+
+SLA breach alerts
+
+
+Cost monitoring per stream
+
+
+CDN & bandwidth optimization tools
+
+
+and more...
