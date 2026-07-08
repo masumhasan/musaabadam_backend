@@ -109,6 +109,33 @@ const onboardPayoutAccount = async (req, res, next) => {
   }
 };
 
+const sendTip = async (req, res, next) => {
+  try {
+    const result = await svc.processTip(req.user._id, req.body);
+    return created(res, { tip: result }, 'Tip sent successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getReceivedTips = async (req, res, next) => {
+  try {
+    const result = await svc.getReceivedTips(req.user._id);
+    return success(res, { tips: result }, 'Received tips retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getSentTips = async (req, res, next) => {
+  try {
+    const result = await svc.getSentTips(req.user._id);
+    return success(res, { tips: result }, 'Sent tips retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   listMethods,
   addMethod,
@@ -122,4 +149,7 @@ module.exports = {
   listPayouts,
   payoutAccount,
   onboardPayoutAccount,
+  sendTip,
+  getReceivedTips,
+  getSentTips,
 };

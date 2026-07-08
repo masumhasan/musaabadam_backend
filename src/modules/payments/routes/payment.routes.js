@@ -47,4 +47,9 @@ router.get('/rewards/admin/list', authenticateAdmin, rewardCtrl.adminListRewards
 router.post('/rewards/admin/create', authenticateAdmin, rewardCtrl.adminCreateReward);
 router.delete('/rewards/admin/:id', authenticateAdmin, rewardCtrl.adminDeleteReward);
 
+// ── Tips / Tipping ────────────────────────────────────────────────────────────
+router.post('/tips', authenticateUser, ctrl.sendTip);
+router.get('/tips/received', authenticateUser, ctrl.getReceivedTips);
+router.get('/tips/sent', authenticateUser, ctrl.getSentTips);
+
 module.exports = router;

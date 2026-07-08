@@ -38,7 +38,7 @@ const applyLedger = async (userId, { type, amount, bucket, orderId, paymentId, p
   const wallet = await getOrCreateWallet(userId);
   wallet[bucket] = round2(Math.max(0, (wallet[bucket] || 0) + amount));
 
-  if (type === LEDGER_TYPE.ESCROW_RELEASE && amount > 0) wallet.lifetimeEarned = round2(wallet.lifetimeEarned + amount);
+  if ((type === LEDGER_TYPE.ESCROW_RELEASE || type === LEDGER_TYPE.TIP) && amount > 0) wallet.lifetimeEarned = round2(wallet.lifetimeEarned + amount);
   if (type === LEDGER_TYPE.PAYOUT && amount < 0) wallet.lifetimePaidOut = round2(wallet.lifetimePaidOut - amount);
   await wallet.save();
 
@@ -482,6 +482,125 @@ const listPayouts = async (sellerId, { page = 1, limit = 20 } = {}) => {
   return { payouts, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) };
 };
 
+const processTip = async (buyerId, { sellerId, streamId, amount, paymentMethodId, message }) => {
+  if (String(buyerId) === String(sellerId)) {
+    throw new AppError('You cannot tip yourself', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const User = require('../../../models/User');
+  const buyer = await User.findById(buyerId);
+  const seller = await User.findById(sellerId);
+  if (!buyer || !seller) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+
+  // Fee calculation (flat 3.3% card fee to buyer)
+  const processingFee = round2(amount * 0.033);
+  const totalAmount = round2(amount + processingFee);
+
+  let pm = null;
+  if (paymentMethodId) {
+    pm = await PaymentMethod.findOne({ _id: paymentMethodId, userId: buyerId, deletedAt: null });
+    if (!pm) throw new AppError('Payment method not found', HTTP_STATUS.NOT_FOUND);
+  }
+
+  let customerId = buyer.stripeCustomerId;
+  if (provider.name === 'stripe' && !customerId) {
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const customer = await stripe.customers.create({
+      email: buyer.email,
+      metadata: { userId: String(buyer._id) },
+    });
+    customerId = customer.id;
+    buyer.stripeCustomerId = customerId;
+    await buyer.save();
+  }
+
+  // Create payment intent for tip
+  const intent = await provider.createPaymentIntent({
+    amount: totalAmount,
+    currency: PAYMENT.CURRENCY,
+    metadata: { buyerId: String(buyerId), sellerId: String(sellerId), type: 'tip' },
+    paymentMethodId: pm?.providerPaymentMethodId,
+    customerId,
+  });
+
+  // Confirm payment intent
+  const result = await provider.confirmPaymentIntent({
+    intentId: intent.id,
+    paymentMethodId: pm?.providerPaymentMethodId,
+  });
+
+  if (result.status !== 'succeeded') {
+    throw new AppError('Tip payment failed', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const Tip = require('../../../models/Tip');
+  const tip = await Tip.create({
+    buyerId,
+    sellerId,
+    streamId: streamId || null,
+    amount,
+    processingFee,
+    totalAmount,
+    message,
+    providerIntentId: intent.id,
+    status: 'succeeded',
+  });
+
+  // Credit seller wallet immediately to available balance
+  await applyLedger(sellerId, {
+    type: LEDGER_TYPE.TIP,
+    amount,
+    bucket: 'available',
+    description: `Tip received from @${buyer.username}${message ? ': "' + message + '"' : ''}`,
+  });
+
+  // Emit chat shout-out message
+  if (streamId) {
+    try {
+      const { getIO } = require('../../../socket');
+      getIO()?.to(`stream:${streamId}`).emit('chat-message', {
+        _id: `tip-${tip._id}`,
+        streamId,
+        user: {
+          _id: String(buyerId),
+          username: buyer.username,
+          displayName: buyer.displayName || buyer.username,
+          avatarUrl: buyer.avatarUrl || null,
+        },
+        text: `tipped £${amount.toFixed(2)} to the seller! ${message ? 'Message: "' + message + '"' : ''} 💖`,
+        isSystem: true,
+        createdAt: new Date(),
+      });
+    } catch (err) {
+      logger.error('Tip socket message emit failed', { error: err.message });
+    }
+  }
+
+  // Trigger push/in-app notification
+  try {
+    const { notify } = require('../../notifications/services/notification.service');
+    await notify(sellerId, {
+      type: 'system',
+      title: 'Received a Tip! 💖',
+      body: `@${buyer.username} sent you a £${amount.toFixed(2)} tip!`,
+    });
+  } catch (err) {
+    logger.error('Tip notification send failed', { error: err.message });
+  }
+
+  return tip;
+};
+
+const getReceivedTips = async (sellerId) => {
+  const Tip = require('../../../models/Tip');
+  return Tip.find({ sellerId, status: 'succeeded' }).populate('buyerId', 'username email').sort({ createdAt: -1 });
+};
+
+const getSentTips = async (buyerId) => {
+  const Tip = require('../../../models/Tip');
+  return Tip.find({ buyerId, status: 'succeeded' }).populate('sellerId', 'username email').sort({ createdAt: -1 });
+};
+
 module.exports = {
   listPaymentMethods,
   addPaymentMethod,
@@ -496,4 +615,7 @@ module.exports = {
   listPayouts,
   startPayoutOnboarding,
   getPayoutAccount,
+  processTip,
+  getReceivedTips,
+  getSentTips,
 };
