@@ -158,7 +158,13 @@ Everything below has been verified present in the codebase — models, services,
 - Merged landing page into the main dashboard repository. The root screen (`/`) serves the landing page, while the admin dashboard is hosted under `/dashboard` (fully authenticated and protected).
 - Static assets (images, logos) and subpages (`/contactus`, `/faq`, `/privacypolicy`, `/terms`) are fully merged and available.
 
-### 1.23 Seller Tools & Experience Enhancements
+### 1.23 KYC & Seller Account Health (Whatnot style)
+- **Document Upload**: Sellers upload high-resolution images of their Identity Documents and Business Licenses during seller onboarding inside the app (`SellerKycScreen`).
+- **Manual Admin Verification**: Admins review uploaded KYC images, subcategory interests, and business address details in the Admin Dashboard (`/dashboard/sellers`) and approve, reject, or request more information from the applicant.
+- **Dynamic Account Health Standing**: Accounts calculate policy standing based on KYC approval status, strike records, and moderation history (Excellent, Good, Average, Action Required), rendered dynamically in both the Flutter client (`AccountHealthScreen`) and backend profile response.
+
+
+### 1.24 Seller Tools & Experience Enhancements
 - **Auction Winner Auto-Charge**: Modified closed auctions to retrieve the buyer's default card, execute `createCheckout`, and confirm payment automatically, updating the order to paid/confirmed status on success.
 - **Escrow Auto-Release (3 days)**: Background sweeper registered in `server.js` automatically releases escrowed funds to the seller after 3 days if the buyer has not manually confirmed receipt.
 - **Pre-show Reminders (15 min)**: Runs a background interval in `server.js` to automatically alert registered users with push notifications 15 minutes before scheduled shows.
@@ -171,7 +177,7 @@ Everything below has been verified present in the codebase — models, services,
   - **Invite Seller Screen**: Dynamic referral links built with the logged-in user's username.
   - **Contact Seller Support**: Directed support buttons to the support inbox.
 
-### 1.24 Tips & Tipping
+### 1.25 Tips & Tipping
 - **Tip Schema**: Tracks tipping records (`buyerId`, `sellerId`, `streamId`, `amount`, `processingFee`, `totalAmount`, `message`, `providerIntentId`, `status`).
 - **REST Endpoints**: Submitting tips via `POST /payments/tips` and listing received/sent histories.
 - **Dynamic Fee & Total Calculations**: Calculates flat 3.3% card fees in client/server and charges total values to buyer cards.
@@ -282,6 +288,14 @@ Everything below has been verified present in the codebase — models, services,
 4. **Validation**: 
    - Verify that the chat room instantly displays a styled system announcement card: e.g. "John Doe tipped £10 to the seller! Message: 'Thanks!' 💖".
    - Navigate to the seller's wallet: verify that their available balance immediately increments by the net tip value (£10.00) and shows up in the transaction ledger history, while the buyer was billed the total value (£10.33) including the Stripe card fee.
+
+### 6.5 KYC & Seller Verification Flow
+1. **Application Submission**: Log in to the Flutter app as a regular user, navigate to **Become a Seller**, fill in Category, Subcategories, Seller Type, Business Address, and Average Earnings.
+2. **KYC Document Upload**: On the newly added **Verification Documents** screen, tap to choose high-resolution gallery images for both **Identity Document** and **Business License**. Tap **Submit Application**.
+3. **Verify Pending Status**: Go to Profile -> **Account Health** in the app. Since your KYC files are uploaded but not yet processed, verify that the health gauge displays **Average (KYC verification under review)**.
+4. **Dashboard Auditing**: Log in to the Admin Dashboard, navigate to the **Sellers** page, select the user, and click **Details**. Review the formatted Category survey, Address details, and view the high-resolution Identity document and Business license images (or click the external links to view in a new tab).
+5. **Approve Application**: Click **Approve**.
+6. **Confirmation**: Return to Profile -> **Account Health** in the app. The gauge will dynamically refresh to **Excellent (Fully verified with clean history)**.
 
 ---
 
