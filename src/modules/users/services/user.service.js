@@ -126,6 +126,8 @@ const applyAsSeller = async (userId, data) => {
     sellerType: data.sellerType,
     businessAddress: data.businessAddress,
     averageEarningRange: data.averageEarningRange,
+    identityDocUrl: data.identityDocUrl,
+    businessLicenseUrl: data.businessLicenseUrl,
     appliedAt: new Date(),
   };
 

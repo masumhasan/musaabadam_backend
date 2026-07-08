@@ -51,6 +51,8 @@ const SellerProfileSchema = new mongoose.Schema(
       // e.g. 'marketplace_seller', 'sell_live', 'teen_seller', 'luxury_bags', etc.
     },
     stripeAccountId: { type: String },
+    identityDocUrl: { type: String },
+    businessLicenseUrl: { type: String },
     appliedAt: { type: Date },
     approvedAt: { type: Date },
     rejectedAt: { type: Date },
@@ -275,6 +277,27 @@ UserSchema.methods.isAccountAccessible = function () {
   return true;
 };
 
+UserSchema.methods.getAccountHealth = function () {
+  if (this.isBanned) return 'Action Required';
+  if (this.strikeCount >= 3) return 'Action Required';
+
+  const status = this.sellerProfile?.status;
+  const identityDoc = this.sellerProfile?.identityDocUrl;
+  const licenseDoc = this.sellerProfile?.businessLicenseUrl;
+
+  if (status === 'approved') {
+    if (this.strikeCount > 0) return 'Good';
+    return 'Excellent';
+  }
+
+  if (identityDoc || licenseDoc) {
+    if (status === 'rejected') return 'Action Required';
+    return 'Average'; // Under review / pending
+  }
+
+  return 'Action Required'; // Needs to upload KYC
+};
+
 UserSchema.methods.toPublicProfile = function () {
   return {
     id: this._id,
@@ -322,6 +345,7 @@ UserSchema.methods.toPrivateProfile = function () {
     followingCount: this.followingCount,
     buyerRating: this.buyerRating,
     sellerProfile: this.sellerProfile,
+    accountHealth: this.getAccountHealth(),
     addresses: this.addresses,
     notificationPreferences: this.notificationPreferences,
     walletBalance: this.walletBalance,

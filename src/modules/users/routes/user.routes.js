@@ -22,6 +22,8 @@ router.post('/seller-application', [
   body('businessAddress.postalCode').trim().notEmpty().withMessage('Postal code is required'),
   body('businessAddress.country').trim().notEmpty().withMessage('Country is required'),
   body('averageEarningRange').trim().notEmpty().withMessage('Average earning range is required'),
+  body('identityDocUrl').optional().isString().trim(),
+  body('businessLicenseUrl').optional().isString().trim(),
 ], validate, userController.applyAsSeller);
 
 // ─── Own profile ──────────────────────────────────────────────────────────────
