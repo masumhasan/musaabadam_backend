@@ -44,6 +44,13 @@ const claimChallengeReward = async (req, res, next) => {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
     });
 
+    const { notify } = require('../../notifications/services/notification.service');
+    await notify(req.user._id, {
+      type: 'system',
+      title: 'Challenge Reward Coupon Issued! 🎉',
+      body: `You received a £10 coupon (${reward.code}) for completing: ${challengeId.replace(/_/g, ' ')}.`,
+    });
+
     return res.status(HTTP_STATUS.CREATED).json({
       success: true,
       data: { reward },
@@ -88,6 +95,14 @@ const adminCreateReward = async (req, res, next) => {
       discountValue: Number(discountValue),
       minOrderValue: Number(minOrderValue || 0),
       expiresAt: new Date(Date.now() + Number(expiresDays || 30) * 24 * 60 * 60 * 1000),
+    });
+
+    const { notify } = require('../../notifications/services/notification.service');
+    const discountText = reward.discountType === 'fixed' ? `£${reward.discountValue}` : `${reward.discountValue}%`;
+    await notify(user._id, {
+      type: 'system',
+      title: 'New Coupon Issued! 🎁',
+      body: `You have been issued a ${discountText} coupon: "${reward.title}". Code: ${reward.code}.`,
     });
 
     return res.status(HTTP_STATUS.CREATED).json({
