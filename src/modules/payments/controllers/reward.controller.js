@@ -2,7 +2,7 @@ const Reward = require('../../../models/Reward');
 const User = require('../../../models/User');
 const crypto = require('crypto');
 const { HTTP_STATUS } = require('../../../config/constants');
-const AppError = require('../../../utils/AppError');
+const { AppError } = require('../../../middleware/errorHandler');
 
 // Get current user's rewards
 const listRewards = async (req, res, next) => {
