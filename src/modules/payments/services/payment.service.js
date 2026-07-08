@@ -64,7 +64,23 @@ const listPaymentMethods = async (userId) =>
   PaymentMethod.find({ userId, deletedAt: null }).sort({ isDefault: -1, createdAt: -1 });
 
 const addPaymentMethod = async (userId, { card, providerPaymentMethodId, makeDefault }) => {
-  const attached = await provider.attachPaymentMethod({ card, providerPaymentMethodId });
+  const User = require('../../../models/User');
+  const user = await User.findById(userId);
+  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+
+  let customerId = user.stripeCustomerId;
+  if (provider.name === 'stripe' && !customerId) {
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const customer = await stripe.customers.create({
+      email: user.email,
+      metadata: { userId: String(user._id) },
+    });
+    customerId = customer.id;
+    user.stripeCustomerId = customerId;
+    await user.save();
+  }
+
+  const attached = await provider.attachPaymentMethod({ card, providerPaymentMethodId, customerId });
 
   if (makeDefault) {
     await PaymentMethod.updateMany({ userId, deletedAt: null }, { $set: { isDefault: false } });
@@ -134,11 +150,16 @@ const createCheckout = async (buyerId, orderId, { paymentMethodId, couponId } = 
   const platformFee = round2((amount * PAYMENT.PLATFORM_FEE_PERCENT) / 100);
   const sellerNet = round2(amount - platformFee);
 
+  const User = require('../../../models/User');
+  const buyer = await User.findById(buyerId);
+  const customerId = buyer?.stripeCustomerId;
+
   const intent = await provider.createPaymentIntent({
     amount,
     currency: PAYMENT.CURRENCY,
     metadata: { orderId: String(order._id), buyerId: String(buyerId) },
     paymentMethodId: pm?.providerPaymentMethodId,
+    customerId,
   });
 
   // Reuse an existing pending payment for this order if present.

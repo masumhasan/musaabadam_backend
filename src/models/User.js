@@ -177,6 +177,8 @@ const UserSchema = new mongoose.Schema(
 
     // ── Wallet (denormalized balance — source of truth in Wallet collection) ──
     walletBalance: { type: Number, default: 0 },
+    stripeCustomerId: { type: String },
+    stripeConnectAccountId: { type: String },
 
     // ── Rewards & Referrals ───────────────────────────────────────────────────
     referralCode: { type: String, unique: true, sparse: true },

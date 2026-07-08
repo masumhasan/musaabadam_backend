@@ -75,8 +75,22 @@ if (process.env.STRIPE_SECRET_KEY) {
     _provider = {
       name: 'stripe',
 
-      async attachPaymentMethod({ providerPaymentMethodId, customerId }) {
-        const pm = await stripe.paymentMethods.attach(providerPaymentMethodId, { customer: customerId });
+      async attachPaymentMethod({ card, providerPaymentMethodId, customerId }) {
+        let pmId = providerPaymentMethodId;
+        if (card && card.number) {
+          const createdPm = await stripe.paymentMethods.create({
+            type: 'card',
+            card: {
+              number: card.number,
+              exp_month: Number(card.expMonth),
+              exp_year: Number(card.expYear),
+              cvc: card.cvc || '123',
+            },
+          });
+          pmId = createdPm.id;
+        }
+
+        const pm = await stripe.paymentMethods.attach(pmId, { customer: customerId });
         return {
           id: pm.id,
           brand: pm.card?.brand,
