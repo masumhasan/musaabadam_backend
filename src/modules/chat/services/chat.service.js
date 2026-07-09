@@ -15,11 +15,6 @@ const resolveMentions = async (text) => {
 
 // Minimal profanity filter. Replace with an AI moderation provider later
 // (the "AI-based chat moderation" roadmap item).
-const BANNED_WORDS = ['fuck', 'shit', 'bitch', 'asshole', 'cunt', 'nigger', 'faggot'];
-const bannedRegex = new RegExp(`\\b(${BANNED_WORDS.join('|')})\\b`, 'gi');
-
-const maskProfanity = (text) => text.replace(bannedRegex, (m) => '*'.repeat(m.length));
-const containsProfanity = (text) => bannedRegex.test(text);
 
 // Roles allowed to moderate a stream's chat.
 const MOD_ROLES = [ROLES.SELLER, ROLES.MODERATOR, ROLES.COHOST, ROLES.ADMIN];
@@ -48,8 +43,22 @@ const createMessage = async ({ streamId, sender, text, type = MESSAGE_TYPE.MESSA
   if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
   if (stream.chatEnabled === false) throw new AppError('Chat is disabled for this stream', HTTP_STATUS.FORBIDDEN);
 
-  const flagged = containsProfanity(trimmed);
-  const cleaned = flagged ? maskProfanity(trimmed) : trimmed;
+  const PlatformSetting = require('../../../models/PlatformSetting');
+  const platformSettings = await PlatformSetting.findOne({ type: 'global' });
+  const globalMutedWords = platformSettings?.globalMutedWords || [];
+  const streamMutedWords = stream.mutedWords || [];
+  const allMutedWords = [...globalMutedWords, ...streamMutedWords];
+
+  for (const word of allMutedWords) {
+    if (!word) continue;
+    const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+    if (regex.test(trimmed)) {
+      throw new AppError('Message contains a restricted word', HTTP_STATUS.BAD_REQUEST);
+    }
+  }
+
+  const cleaned = trimmed;
 
   // Validate the replied-to message belongs to this stream.
   let replyRef = null;
@@ -119,4 +128,4 @@ const serialize = (m) => ({
   createdAt: m.createdAt,
 });
 
-module.exports = { createMessage, getHistory, deleteMessage, canModerate, maskProfanity };
+module.exports = { createMessage, getHistory, deleteMessage, canModerate };

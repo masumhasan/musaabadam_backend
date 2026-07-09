@@ -64,13 +64,15 @@ const getPlatformSettings = async (req, res, next) => {
 const updatePlatformSettings = async (req, res, next) => {
   try {
     const PlatformSetting = require('../../../models/PlatformSetting');
-    const { allowedTags, globalMutedWords, allowedLanguages } = req.body;
+    const { allowedTags, globalMutedWords, selectiveMutedWords, allowedLanguages } = req.body;
+
     let doc = await PlatformSetting.findOne({ type: 'global' });
     if (!doc) {
       doc = new PlatformSetting({ type: 'global' });
     }
     if (allowedTags !== undefined) doc.allowedTags = allowedTags;
     if (globalMutedWords !== undefined) doc.globalMutedWords = globalMutedWords;
+    if (selectiveMutedWords !== undefined) doc.selectiveMutedWords = selectiveMutedWords;
     if (allowedLanguages !== undefined) doc.allowedLanguages = allowedLanguages;
     
     await doc.save();
