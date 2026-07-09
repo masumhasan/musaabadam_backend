@@ -1,0 +1,1 @@
+const mongoose = require('mongoose'); mongoose.connect('mongodb://localhost:27017/musaabadam').then(async () => { const doc = await require('./src/models/PlatformSetting').findOne(); console.log(doc); process.exit(0); }).catch(console.error);
