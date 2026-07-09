@@ -49,6 +49,8 @@ Everything below has been verified present in the codebase — models, services,
 - Persistent per-stream ban (`Stream.bannedUserIds`, `ban-user` → `banned` event)
 - Pin message (`pin-message` → `message-pinned/unpinned`)
 - Configurable slow mode (`set-slow-mode`, `Stream.chatSlowModeSeconds`)
+- **Automated Chat Moderation**: Backend explicitly rejects chat messages containing globally muted words or seller-defined selective muted words with a 400 error.
+- **Selective Muted Words**: Sellers can select from a predefined dashboard list of selective muted words to enforce specifically on their individual streams.
 
 ### 1.6 Live Auctions
 - `Bid` model, start auction, socket + REST bidding
@@ -144,7 +146,7 @@ Everything below has been verified present in the codebase — models, services,
 
 ### 1.20 Dashboard (Next.js — Admin Panel)
 - Auth (admin login, session, ProtectedRoute)
-- **Pages**: Users, Seller Approvals, Analytics, Products, Categories, Admins, Settings, Rewards
+- **Pages**: Users, Seller Approvals, Analytics, Products, Categories, Admins, Settings, Rewards, Tags, Muted Words
 - **New pages**: Orders, Payouts, Livestream Monitoring (with force-terminate), Reports & Moderation
 - **Mobile Responsive Drawer**: Side menu collapses on mobile screens into a responsive slide-out glass drawer.
 - Sidebar with permission-gating per `ADMIN_PERMISSIONS`
@@ -176,6 +178,7 @@ Everything below has been verified present in the codebase — models, services,
   - **Offers Screen**: Interactive list of mock buyer offers that can be Accepted/Declined.
   - **Invite Seller Screen**: Dynamic referral links built with the logged-in user's username.
   - **Contact Seller Support**: Directed support buttons to the support inbox.
+  - **Schedule Screen**: Interactive multi-select bottom sheets for assigning Tags and Selective Muted Words before going live.
 
 ### 1.25 Tips & Tipping
 - **Tip Schema**: Tracks tipping records (`buyerId`, `sellerId`, `streamId`, `amount`, `processingFee`, `totalAmount`, `message`, `providerIntentId`, `status`).
