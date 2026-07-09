@@ -85,6 +85,23 @@ const NotificationPreferencesSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const AppPreferencesSchema = new mongoose.Schema(
+  {
+    directMessages: { type: Boolean, default: true },
+    showSensitiveContent: { type: Boolean, default: false },
+    enablePrivateEntry: { type: Boolean, default: false },
+    contentCommunityBoost: { type: Boolean, default: true },
+    showRealtimePromoteTool: { type: Boolean, default: true },
+    displayRewardsClubStatus: { type: Boolean, default: true },
+    yourPastShows: { type: Boolean, default: true },
+    activityStatus: { type: Boolean, default: true },
+    suggestAccountToOthers: { type: Boolean, default: true },
+    syncContacts: { type: Boolean, default: false },
+    country: { type: String, default: 'USA' },
+  },
+  { _id: false }
+);
+
 // ─── Main User Schema ─────────────────────────────────────────────────────────
 
 const UserSchema = new mongoose.Schema(
@@ -168,9 +185,13 @@ const UserSchema = new mongoose.Schema(
     // ── Addresses ────────────────────────────────────────────────────────────
     addresses: { type: [AddressSchema], default: [] },
 
-    // ── Notification Preferences ──────────────────────────────────────────────
+    // ── Notification & App Preferences ────────────────────────────────────────
     notificationPreferences: {
       type: NotificationPreferencesSchema,
+      default: () => ({}),
+    },
+    appPreferences: {
+      type: AppPreferencesSchema,
       default: () => ({}),
     },
 

@@ -107,6 +107,16 @@ const updateNotificationPreferences = async (userId, preferences) => {
   return user.notificationPreferences;
 };
 
+const updateAppPreferences = async (userId, preferences) => {
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $set: { appPreferences: preferences } },
+    { new: true, runValidators: true }
+  ).select('appPreferences');
+  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+  return user.appPreferences;
+};
+
 const applyAsSeller = async (userId, data) => {
   const user = await User.findById(userId);
   if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
@@ -178,6 +188,7 @@ module.exports = {
   deleteAddress,
   getPublicProfile,
   updateNotificationPreferences,
+  updateAppPreferences,
   applyAsSeller,
   getReferralInfo,
 };

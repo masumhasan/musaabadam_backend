@@ -68,9 +68,23 @@ router.delete('/addresses/:addressId', [
   param('addressId').isMongoId().withMessage('Invalid address ID'),
 ], validate, userController.deleteAddress);
 
-// ─── Notification preferences ─────────────────────────────────────────────────
+// ─── Notification & App Preferences ──────────────────────────────────────────
 
 router.put('/notification-preferences', userController.updateNotificationPreferences);
+
+router.put('/app-preferences', [
+  body('directMessages').optional().isBoolean(),
+  body('showSensitiveContent').optional().isBoolean(),
+  body('enablePrivateEntry').optional().isBoolean(),
+  body('contentCommunityBoost').optional().isBoolean(),
+  body('showRealtimePromoteTool').optional().isBoolean(),
+  body('displayRewardsClubStatus').optional().isBoolean(),
+  body('yourPastShows').optional().isBoolean(),
+  body('activityStatus').optional().isBoolean(),
+  body('suggestAccountToOthers').optional().isBoolean(),
+  body('syncContacts').optional().isBoolean(),
+  body('country').optional().isString().trim(),
+], validate, userController.updateAppPreferences);
 
 // ─── Block list (own) ─────────────────────────────────────────────────────────
 

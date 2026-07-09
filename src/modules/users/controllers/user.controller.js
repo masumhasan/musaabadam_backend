@@ -82,6 +82,15 @@ const updateNotificationPreferences = async (req, res, next) => {
   }
 };
 
+const updateAppPreferences = async (req, res, next) => {
+  try {
+    const prefs = await userService.updateAppPreferences(req.user._id, req.body);
+    return success(res, prefs, 'App preferences updated');
+  } catch (err) {
+    next(err);
+  }
+};
+
 const applyAsSeller = async (req, res, next) => {
   try {
     const profile = await userService.applyAsSeller(req.user._id, req.body);
@@ -91,4 +100,4 @@ const applyAsSeller = async (req, res, next) => {
   }
 };
 
-module.exports = { getMyProfile, getReferralInfo, updateMyProfile, getPublicProfile, getAddresses, addAddress, updateAddress, deleteAddress, updateNotificationPreferences, applyAsSeller };
+module.exports = { getMyProfile, getReferralInfo, updateMyProfile, getPublicProfile, getAddresses, addAddress, updateAddress, deleteAddress, updateNotificationPreferences, updateAppPreferences, applyAsSeller };

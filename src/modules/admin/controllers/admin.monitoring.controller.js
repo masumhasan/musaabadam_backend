@@ -1,6 +1,7 @@
 const Order = require('../../../models/Order');
 const Payout = require('../../../models/Payout');
 const Stream = require('../../../models/Stream');
+const Offer = require('../../../models/Offer');
 const { success } = require('../../../utils/apiResponse');
 
 const paginate = (query) => {
@@ -80,4 +81,26 @@ const terminateStream = async (req, res, next) => {
   }
 };
 
-module.exports = { listOrders, listPayouts, listStreams, terminateStream };
+// GET /admin/offers — platform-wide offer monitoring.
+const listOffers = async (req, res, next) => {
+  try {
+    const { page, limit, skip } = paginate(req.query);
+    const filter = {};
+    if (req.query.status) filter.status = req.query.status;
+    const [offers, total] = await Promise.all([
+      Offer.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('buyerId', 'username displayName')
+        .populate('sellerId', 'username displayName')
+        .populate('productId', 'title price images'),
+      Offer.countDocuments(filter),
+    ]);
+    return success(res, { offers, total, page, limit, totalPages: Math.ceil(total / limit) }, 'Offers');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { listOrders, listPayouts, listStreams, terminateStream, listOffers };
