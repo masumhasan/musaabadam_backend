@@ -21,6 +21,7 @@ const FOLDER_PATHS = {
   product: 'products/images',
   stream_thumbnail: 'streams/thumbnails',
   stream_recording: 'streams/recordings',
+  category: 'categories/images',
 };
 
 const PRESIGNED_URL_TTL_SECONDS = 300; // 5 minutes

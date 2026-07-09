@@ -98,4 +98,18 @@ router.put('/settings/privacy-policy', updateLegalContentValidator, validate, se
 router.put('/settings/terms', updateLegalContentValidator, validate, settingsCtrl.updateTerms);
 router.put('/settings/platform', validate, settingsCtrl.updatePlatformSettings);
 
+// ── Uploads ────────────────────────────────────────────────────────────────────
+const uploadCtrl = require('../../uploads/controllers/upload.controller');
+const { body } = require('express-validator');
+router.post(
+  '/uploads/presigned-url',
+  body('folder')
+    .isIn(['category', 'product', 'profile'])
+    .withMessage('Invalid folder'),
+  body('contentType').isString().notEmpty(),
+  body('fileSize').isInt({ min: 1 }),
+  validate,
+  uploadCtrl.getUploadUrl
+);
+
 module.exports = router;

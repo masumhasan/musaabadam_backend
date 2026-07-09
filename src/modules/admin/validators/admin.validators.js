@@ -84,7 +84,7 @@ const createCategoryValidator = [
   body('name').trim().notEmpty().withMessage('Name required').isLength({ max: 80 }),
   body('slug').optional({ values: 'falsy' }).trim().matches(/^[a-z0-9-]+$/).withMessage('Slug may only contain lowercase letters, numbers, and hyphens').isLength({ max: 80 }),
   body('parentId').optional({ values: 'falsy' }).isMongoId().withMessage('Invalid parent category ID'),
-  body('iconUrl').optional({ values: 'falsy' }).trim().isURL().withMessage('iconUrl must be a valid URL').isLength({ max: 500 }),
+  body('imageUrl').optional({ values: 'falsy' }).trim().isURL().withMessage('imageUrl must be a valid URL').isLength({ max: 500 }),
   body('sortOrder').optional().isInt({ min: 0 }).toInt().withMessage('sortOrder must be a non-negative integer'),
 ];
 
@@ -93,7 +93,7 @@ const updateCategoryValidator = [
   body('name').optional({ values: 'falsy' }).trim().notEmpty().isLength({ max: 80 }),
   body('slug').optional({ values: 'falsy' }).trim().matches(/^[a-z0-9-]+$/).withMessage('Slug may only contain lowercase letters, numbers, and hyphens').isLength({ max: 80 }),
   body('parentId').optional({ values: 'falsy' }).isMongoId().withMessage('Invalid parent category ID'),
-  body('iconUrl').optional({ values: 'falsy' }).trim().isURL().withMessage('iconUrl must be a valid URL').isLength({ max: 500 }),
+  body('imageUrl').optional({ values: 'falsy' }).trim().isURL().withMessage('imageUrl must be a valid URL').isLength({ max: 500 }),
   body('isActive').optional().isBoolean().toBoolean(),
   body('sortOrder').optional().isInt({ min: 0 }).toInt().withMessage('sortOrder must be a non-negative integer'),
 ];

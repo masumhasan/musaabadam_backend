@@ -29,7 +29,7 @@ const listCategories = async ({ parentId, page = 1, limit = 50 }) => {
 };
 
 const createCategory = async (data) => {
-  const { name, parentId, iconUrl, sortOrder } = data;
+  const { name, parentId, imageUrl, sortOrder } = data;
   const slug = data.slug ? data.slug : slugify(name);
 
   const existing = await Category.findOne({ $or: [{ name }, { slug }] });
@@ -45,7 +45,7 @@ const createCategory = async (data) => {
     name,
     slug,
     parentId: parentId || null,
-    iconUrl: iconUrl || undefined,
+    imageUrl: imageUrl || undefined,
     sortOrder: sortOrder ?? 0,
   });
 };
@@ -64,7 +64,7 @@ const updateCategory = async (categoryId, data) => {
     if (conflict) throw new AppError('Category slug already in use', HTTP_STATUS.CONFLICT);
   }
 
-  const allowed = ['name', 'slug', 'iconUrl', 'isActive', 'sortOrder', 'parentId'];
+  const allowed = ['name', 'slug', 'imageUrl', 'isActive', 'sortOrder', 'parentId'];
   for (const key of allowed) {
     if (key in data) category[key] = data[key];
   }

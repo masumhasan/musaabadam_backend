@@ -16,7 +16,7 @@ const CategorySchema = new mongoose.Schema(
       ref: 'Category',
       default: null,
     },
-    iconUrl: { type: String, trim: true },
+    imageUrl: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
   },
