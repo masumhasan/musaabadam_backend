@@ -47,6 +47,24 @@ const StreamSchema = new mongoose.Schema(
       default: STREAM_VISIBILITY.PUBLIC,
     },
 
+    // New Fields for Schedule A Show parity
+    videoPreviewUrl: { type: String, trim: true },
+    primarySellingFormat: { 
+      type: String, 
+      enum: ['auction', 'buy_it_now'], 
+      default: 'auction' 
+    },
+    repeatOption: { 
+      type: String, 
+      enum: ['doesNotRepeat', 'daily', 'weekly'], 
+      default: 'doesNotRepeat' 
+    },
+    shippingSettings: { type: String }, // simple string or ID reference
+    freePickup: { type: Boolean, default: false },
+    explicitContent: { type: Boolean, default: false },
+    mutedWords: { type: [String], default: [] },
+    primaryLanguage: { type: String, default: 'English' },
+
     // GetStream call reference
     callId: { type: String, required: true, unique: true },
     callType: { type: String, default: 'livestream' },
@@ -78,6 +96,7 @@ const StreamSchema = new mongoose.Schema(
     // Settings
     chatEnabled: { type: Boolean, default: true },
     cohostIds: [{ type: ObjectId, ref: 'User' }],
+    moderatorIds: [{ type: ObjectId, ref: 'User' }],
 
     // Live moderation
     bannedUserIds: [{ type: ObjectId, ref: 'User' }], // persistent per-stream bans

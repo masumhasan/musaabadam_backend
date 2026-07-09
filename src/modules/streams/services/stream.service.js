@@ -56,6 +56,15 @@ const createStream = async (seller, data) => {
     description: data.description,
     categoryId: data.categoryId,
     thumbnailUrl: data.thumbnailUrl,
+    videoPreviewUrl: data.videoPreviewUrl,
+    primarySellingFormat: data.primarySellingFormat ?? 'auction',
+    repeatOption: data.repeatOption ?? 'doesNotRepeat',
+    shippingSettings: data.shippingSettings,
+    freePickup: data.freePickup ?? false,
+    explicitContent: data.explicitContent ?? false,
+    mutedWords: data.mutedWords ?? [],
+    primaryLanguage: data.primaryLanguage ?? 'English',
+    moderatorIds: data.moderatorIds ?? [],
     tags: data.tags ?? [],
     scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
     chatEnabled: data.chatEnabled ?? true,
@@ -293,6 +302,16 @@ const updateStream = async (sellerId, streamId, data) => {
   if (data.tags != null) stream.tags = data.tags;
   if (data.chatEnabled != null) stream.chatEnabled = data.chatEnabled;
   if (data.visibility != null) stream.visibility = data.visibility;
+
+  if (data.videoPreviewUrl !== undefined) stream.videoPreviewUrl = data.videoPreviewUrl || null;
+  if (data.primarySellingFormat !== undefined) stream.primarySellingFormat = data.primarySellingFormat;
+  if (data.repeatOption !== undefined) stream.repeatOption = data.repeatOption;
+  if (data.shippingSettings !== undefined) stream.shippingSettings = data.shippingSettings;
+  if (data.freePickup !== undefined) stream.freePickup = data.freePickup;
+  if (data.explicitContent !== undefined) stream.explicitContent = data.explicitContent;
+  if (data.mutedWords !== undefined) stream.mutedWords = data.mutedWords;
+  if (data.primaryLanguage !== undefined) stream.primaryLanguage = data.primaryLanguage;
+  if (data.moderatorIds !== undefined) stream.moderatorIds = data.moderatorIds;
 
   await stream.save();
   return stream;

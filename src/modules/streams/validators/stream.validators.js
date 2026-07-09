@@ -18,6 +18,16 @@ const createStreamValidator = [
   body('chatEnabled').optional().isBoolean().toBoolean(),
   body('visibility').optional({ values: 'falsy' }).isIn(visibilityValues).withMessage('Invalid visibility'),
   body('status').optional({ values: 'falsy' }).isIn([STREAM_STATUS.DRAFT, STREAM_STATUS.SCHEDULED]).withMessage('Invalid status'),
+  body('videoPreviewUrl').optional({ values: 'falsy' }).isURL().withMessage('Invalid video URL'),
+  body('primarySellingFormat').optional({ values: 'falsy' }).isIn(['auction', 'buy_it_now']).withMessage('Invalid format'),
+  body('repeatOption').optional({ values: 'falsy' }).isIn(['doesNotRepeat', 'daily', 'weekly']).withMessage('Invalid repeat'),
+  body('freePickup').optional().isBoolean().toBoolean(),
+  body('explicitContent').optional().isBoolean().toBoolean(),
+  body('primaryLanguage').optional({ values: 'falsy' }).isString(),
+  body('mutedWords').optional().isArray().withMessage('Muted words must be array'),
+  body('mutedWords.*').optional().isString().trim(),
+  body('moderatorIds').optional().isArray(),
+  body('moderatorIds.*').optional().isMongoId(),
 ];
 
 const listStreamsValidator = [
@@ -52,6 +62,16 @@ const updateStreamValidator = [
   body('scheduledAt').optional({ values: 'falsy' }).isISO8601().withMessage('scheduledAt must be ISO 8601').toDate(),
   body('chatEnabled').optional().isBoolean().toBoolean(),
   body('visibility').optional({ values: 'falsy' }).isIn(visibilityValues).withMessage('Invalid visibility'),
+  body('videoPreviewUrl').optional({ values: 'falsy' }).isURL().withMessage('Invalid video URL'),
+  body('primarySellingFormat').optional({ values: 'falsy' }).isIn(['auction', 'buy_it_now']).withMessage('Invalid format'),
+  body('repeatOption').optional({ values: 'falsy' }).isIn(['doesNotRepeat', 'daily', 'weekly']).withMessage('Invalid repeat'),
+  body('freePickup').optional().isBoolean().toBoolean(),
+  body('explicitContent').optional().isBoolean().toBoolean(),
+  body('primaryLanguage').optional({ values: 'falsy' }).isString(),
+  body('mutedWords').optional().isArray().withMessage('Muted words must be array'),
+  body('mutedWords.*').optional().isString().trim(),
+  body('moderatorIds').optional().isArray(),
+  body('moderatorIds.*').optional().isMongoId(),
 ];
 
 const createAuctionValidator = [

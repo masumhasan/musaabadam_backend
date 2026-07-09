@@ -48,4 +48,36 @@ const updateTerms = async (req, res, next) => {
   }
 };
 
-module.exports = { getPrivacyPolicy, getTerms, updatePrivacyPolicy, updateTerms };
+const getPlatformSettings = async (req, res, next) => {
+  try {
+    const PlatformSetting = require('../../../models/PlatformSetting');
+    let doc = await PlatformSetting.findOne({ type: 'global' });
+    if (!doc) {
+      doc = await PlatformSetting.create({ type: 'global' });
+    }
+    res.json({ success: true, data: { settings: doc } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updatePlatformSettings = async (req, res, next) => {
+  try {
+    const PlatformSetting = require('../../../models/PlatformSetting');
+    const { allowedTags, globalMutedWords, allowedLanguages } = req.body;
+    let doc = await PlatformSetting.findOne({ type: 'global' });
+    if (!doc) {
+      doc = new PlatformSetting({ type: 'global' });
+    }
+    if (allowedTags !== undefined) doc.allowedTags = allowedTags;
+    if (globalMutedWords !== undefined) doc.globalMutedWords = globalMutedWords;
+    if (allowedLanguages !== undefined) doc.allowedLanguages = allowedLanguages;
+    
+    await doc.save();
+    res.json({ success: true, data: { settings: doc } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getPrivacyPolicy, getTerms, updatePrivacyPolicy, updateTerms, getPlatformSettings, updatePlatformSettings };

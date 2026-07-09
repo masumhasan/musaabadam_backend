@@ -96,5 +96,6 @@ router.patch('/streams/:streamId/terminate', canTerminateStreams, monitoringCtrl
 // ── Settings — legal content (any authenticated admin) ────────────────────────
 router.put('/settings/privacy-policy', updateLegalContentValidator, validate, settingsCtrl.updatePrivacyPolicy);
 router.put('/settings/terms', updateLegalContentValidator, validate, settingsCtrl.updateTerms);
+router.put('/settings/platform', validate, settingsCtrl.updatePlatformSettings);
 
 module.exports = router;
