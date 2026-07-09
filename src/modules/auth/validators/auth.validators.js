@@ -5,7 +5,7 @@ const registerValidator = [
     .trim()
     .isEmail()
     .withMessage('Valid email is required')
-    .normalizeEmail(),
+    .normalizeEmail({ gmail_remove_dots: false }),
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters')
@@ -28,16 +28,16 @@ const registerValidator = [
 ];
 
 const loginValidator = [
-  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail({ gmail_remove_dots: false }),
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
 const forgotPasswordValidator = [
-  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail({ gmail_remove_dots: false }),
 ];
 
 const verifyResetOtpValidator = [
-  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail({ gmail_remove_dots: false }),
   body('otp')
     .trim()
     .matches(/^\d{6}$/)
@@ -58,11 +58,11 @@ const refreshTokenValidator = [
 ];
 
 const resendVerificationValidator = [
-  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail({ gmail_remove_dots: false }),
 ];
 
 const verifyEmailOtpValidator = [
-  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail({ gmail_remove_dots: false }),
   body('otp').trim().matches(/^\d{6}$/).withMessage('OTP must be a 6-digit number'),
 ];
 
@@ -78,7 +78,7 @@ const newPasswordField = body('newPassword')
   .matches(/[0-9]/).withMessage('Password must contain a number');
 
 const initiateEmailChangeValidator = [
-  body('newEmail').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('newEmail').trim().isEmail().withMessage('Valid email is required').normalizeEmail({ gmail_remove_dots: false }),
 ];
 
 const verifyEmailChangeValidator = [otpField];
