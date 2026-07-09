@@ -1,4 +1,5 @@
 const Product = require('../../../models/Product');
+const ShippingProfile = require('../../../models/ShippingProfile');
 const { AppError } = require('../../../middleware/errorHandler');
 const { HTTP_STATUS, LISTING_TYPES, PRODUCT_STATUS } = require('../../../config/constants');
 
@@ -23,6 +24,10 @@ const assertListingRequirements = (data) => {
 
 const createProduct = async (sellerId, data) => {
   assertListingRequirements(data);
+  if (data.shippingProfileId) {
+    const profile = await ShippingProfile.findOne({ _id: data.shippingProfileId, sellerId, deletedAt: null });
+    if (!profile) throw new AppError('Shipping profile not found or does not belong to you', HTTP_STATUS.BAD_REQUEST);
+  }
   const status = data.publishNow ? PRODUCT_STATUS.ACTIVE : PRODUCT_STATUS.DRAFT;
   return Product.create({ ...data, sellerId, status });
 };
@@ -33,6 +38,11 @@ const updateProduct = async (sellerId, productId, updates) => {
 
   if (product.status === PRODUCT_STATUS.ACTIVE && updates.listingType) {
     throw new AppError('Cannot change listing type of an active product', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (updates.shippingProfileId) {
+    const profile = await ShippingProfile.findOne({ _id: updates.shippingProfileId, sellerId, deletedAt: null });
+    if (!profile) throw new AppError('Shipping profile not found or does not belong to you', HTTP_STATUS.BAD_REQUEST);
   }
 
   Object.assign(product, updates);

@@ -60,6 +60,7 @@ const ProductSchema = new mongoose.Schema(
     reserveForLive: { type: Boolean, default: false },
 
     // Shipping
+    shippingProfileId: { type: mongoose.Schema.Types.ObjectId, ref: 'ShippingProfile' },
     shippingWeight: { type: Number, min: 0 },
     hazardousMaterials: { type: Boolean, default: false },
 
