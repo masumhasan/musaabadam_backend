@@ -575,16 +575,39 @@ const unpinProduct = async (sellerId, streamId, productId) => {
 
 const sendPreShowReminders = async () => {
   const now = new Date();
+
+  // 1-Hour Reminder for Sellers
+  const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+  const streams1h = await Stream.find({
+    status: STREAM_STATUS.SCHEDULED,
+    scheduledAt: { $gte: now, $lte: oneHourFromNow },
+    reminded1h: { $ne: true },
+    deletedAt: null,
+  });
+
+  for (const stream of streams1h) {
+    stream.reminded1h = true;
+    await stream.save();
+
+    await notificationService.notify(stream.sellerId, {
+      type: NOTIFICATION_TYPE.STREAM_REMINDER,
+      title: 'Upcoming Show! ⏳',
+      body: `Your scheduled show "${stream.title}" is starting in less than 1 hour. Get ready!`,
+      data: { streamId: stream._id },
+    });
+  }
+
+  // 15-Minute Reminder for Followers
   const fifteenMinutesFromNow = new Date(now.getTime() + 15 * 60 * 1000);
 
-  const streams = await Stream.find({
+  const streams15m = await Stream.find({
     status: STREAM_STATUS.SCHEDULED,
     scheduledAt: { $gte: now, $lte: fifteenMinutesFromNow },
     reminded15Min: { $ne: true },
     deletedAt: null,
   }).populate('sellerId', 'username displayName');
 
-  for (const stream of streams) {
+  for (const stream of streams15m) {
     stream.reminded15Min = true;
     await stream.save();
 
