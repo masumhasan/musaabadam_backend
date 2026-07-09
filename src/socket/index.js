@@ -1,6 +1,7 @@
 const { Server } = require('socket.io');
 const { registerBiddingSocket } = require('./bidding.socket');
 const { registerChatSocket } = require('./chat.socket');
+const { registerDmSocket } = require('./dm.socket');
 const auctionTimers = require('./auctionTimers');
 
 let io = null;
@@ -17,6 +18,7 @@ const initSocket = (server) => {
   auctionTimers.startSweeper();
   registerBiddingSocket(io);
   registerChatSocket(io);
+  registerDmSocket(io);
 
   return io;
 };

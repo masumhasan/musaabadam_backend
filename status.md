@@ -2,7 +2,7 @@
 
 > Full codebase audit of `musaabadam_backend`, `musaabadam_app`, `musaabadam_dashboard`, and `landing`.
 > Legend: ✅ Fully Implemented & Integrated · 🟡 Partial (functional but has known gaps) · ❌ Missing
-> Last updated: **2026-07-08** (comprehensive update with Stripe, Wallet, and Reward features)
+> Last updated: **2026-07-09** (comprehensive update with KYC, DMs, and Offers features)
 
 Companion living docs: [`sellerflow.md`](./sellerflow.md), [`userflow.md`](./userflow.md), [`devdoc.md`](./devdoc.md).
 
@@ -185,6 +185,16 @@ Everything below has been verified present in the codebase — models, services,
 - **Live Stream Chat Broadcasts**: Automatically triggers live room socket message broadcasts displaying tipping cards to viewers (e.g. "John Doe tipped £10 to the seller! 🎉").
 - **Interactive UI**: Fully wires up choice buttons, textfields for thank you note toggles, payment methods checkouts, and loader transitions in the Flutter client.
 
+### 1.26 Direct Messages (DMs)
+- **Real-Time Sockets**: Dedicated socket handlers for user personal rooms (`user:<userId>`) with secure connection auto-join logic.
+- **REST & Socket Combo**: Message persistence via `dm.controller.js` seamlessly firing `dm-message` socket payloads to recipients for real-time mobile inbox syncing.
+- **Flutter Integration**: Dynamic chat UI natively linked to observables within `MessageController` and `InboxController`.
+
+### 1.27 Buyer Offers
+- **Offer Models & Validation**: Validates constraints and logic ensuring users cannot outbid themselves sequentially without updates.
+- **REST & Socket Combo**: Emits `offer-updated` event targeting the buyer when the seller accepts or declines their offer.
+- **Flutter Integration**: Native dialog on `shop_tab.dart` list when viewing active items to submit offers, and reactive views on the Seller `offers_screen.dart` to manage incoming requests.
+
 ---
 
 ## 2. Partially Implemented Features (🟡)
@@ -200,15 +210,12 @@ Everything below has been verified present in the codebase — models, services,
 
 | Priority | Feature | Notes |
 |---|---|---|
-| High | **KYC / business-doc upload** | No document upload for seller verification (identity docs, business license) |
 | High | **Firebase Cloud Messaging** | Push to device tokens; current `pushProvider.js` is a no-op stub |
 | Medium | **Phone social login** | Google + Apple done; phone/SMS OTP not built |
 | Medium | **Seller online/offline status** | No realtime presence indicator on seller profiles |
-| Medium | **In-app messaging (DMs)** | Routes/screens exist (`inboxScreen`, `messageScreen`) but no backend module for direct messages |
 | Low | **Clip editor** | `edit_clip_screen.dart` exists as shell; no clip generation backend |
 | Low | **Story feature** | `story_screen.dart` exists as shell; no story backend module |
 | Low | **Boost / promote** | `boost_screen.dart`, `boost_info_screen.dart` exist as shells; no promotion backend |
-| Low | **Offers** | `offers_screen.dart` exists as shell; no offers backend |
 | Low | **Integration tests** | `tests/integration/` directory is empty; only 1 unit test (`user.model.test.js`) |
 | Low | **Flutter tests** | `test/` directory has no test files |
 
@@ -301,6 +308,6 @@ Everything below has been verified present in the codebase — models, services,
 
 ## 7. Status
 
-✅ **Audit complete — 2026-07-08.** All core features, layout issues, and transient network errors have been resolved.
+✅ **Audit complete — 2026-07-09.** All core features, layout issues, and transient network errors have been resolved.
 
 The core commerce loop (browse → stream → bid/buy → pay → ship → deliver) is fully wired end-to-end. Recent session timeouts, backstage video failures, default stream placeholders, sorting discrepancies, missing user avatars, CORS preflight blockages, S3 video renaming/notifications, mobile-responsive dashboard drawer layouts, seller tools, Stripe payments, and Whatnot-style wallets/rewards have all been fully integrated.
