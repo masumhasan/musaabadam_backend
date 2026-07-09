@@ -66,7 +66,13 @@ const updateCategory = async (categoryId, data) => {
 
   const allowed = ['name', 'slug', 'imageUrl', 'isActive', 'sortOrder', 'parentId'];
   for (const key of allowed) {
-    if (key in data) category[key] = data[key];
+    if (key in data) {
+      if (key === 'parentId' && !data[key]) {
+        category[key] = null;
+      } else {
+        category[key] = data[key];
+      }
+    }
   }
 
   await category.save();
