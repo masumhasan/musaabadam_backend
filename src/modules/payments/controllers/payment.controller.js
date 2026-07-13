@@ -28,6 +28,15 @@ const removeMethod = async (req, res, next) => {
   }
 };
 
+const setDefaultMethod = async (req, res, next) => {
+  try {
+    const method = await svc.setDefaultPaymentMethod(req.user._id, req.params.methodId);
+    return success(res, { method }, 'Default payment method updated');
+  } catch (err) {
+    next(err);
+  }
+};
+
 const checkout = async (req, res, next) => {
   try {
     const result = await svc.createCheckout(req.user._id, req.params.orderId, req.body);
@@ -140,6 +149,7 @@ module.exports = {
   listMethods,
   addMethod,
   removeMethod,
+  setDefaultMethod,
   checkout,
   confirm,
   refund,

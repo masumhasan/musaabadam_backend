@@ -102,10 +102,30 @@ const addPaymentMethod = async (userId, { card, providerPaymentMethodId, makeDef
 const deletePaymentMethod = async (userId, methodId) => {
   const pm = await PaymentMethod.findOne({ _id: methodId, userId, deletedAt: null });
   if (!pm) throw new AppError('Payment method not found', HTTP_STATUS.NOT_FOUND);
+  const wasDefault = pm.isDefault;
   pm.deletedAt = new Date();
   pm.isDefault = false;
   await pm.save();
+
+  // If we deleted the default payment method, assign default status to the most recent active card
+  if (wasDefault) {
+    const nextPm = await PaymentMethod.findOne({ userId, deletedAt: null }).sort({ createdAt: -1 });
+    if (nextPm) {
+      nextPm.isDefault = true;
+      await nextPm.save();
+    }
+  }
   return { id: String(pm._id) };
+};
+
+const setDefaultPaymentMethod = async (userId, methodId) => {
+  const pm = await PaymentMethod.findOne({ _id: methodId, userId, deletedAt: null });
+  if (!pm) throw new AppError('Payment method not found', HTTP_STATUS.NOT_FOUND);
+
+  await PaymentMethod.updateMany({ userId, deletedAt: null }, { $set: { isDefault: false } });
+  pm.isDefault = true;
+  await pm.save();
+  return pm;
 };
 
 // ─── Checkout / escrow ──────────────────────────────────────────────────────
@@ -605,6 +625,7 @@ module.exports = {
   listPaymentMethods,
   addPaymentMethod,
   deletePaymentMethod,
+  setDefaultPaymentMethod,
   createCheckout,
   confirmPayment,
   releaseEscrow,

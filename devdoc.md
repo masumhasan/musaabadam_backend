@@ -2,7 +2,7 @@
 
 > Complete technical handover for a new engineering team. Read top-to-bottom before touching code.
 > Companion docs: [`status.md`](./status.md) (feature audit), [`sellerflow.md`](./sellerflow.md), [`userflow.md`](./userflow.md).
-> Last updated: 2026-07-01. Keep this file current when architecture changes.
+> Last updated: 2026-07-13. Keep this file current when architecture changes.
 
 ---
 
@@ -27,9 +27,9 @@
 | `musaabadam_app/` | Flutter (Dart), GetX, Dio | iOS/Android buyer+seller app |
 | `musaabadam_dashboard/` | Next.js 15, TypeScript, Tailwind v4 | Admin web dashboard |
 
-**Current status:** MVP core is functional end-to-end — auth, products, streams (GetStream video), **live auctions with anti-snipe + auto-bid**, **payments with escrow**, **real-time chat**, **shipping/fulfillment**, orders, referrals, seller onboarding. Payment + storage use swappable stubs (mock payment provider; S3 requires config).
+**Current status:** The core commerce loop and advanced features are functional end-to-end — auth, products (with flash sale support), streams (GetStream video with VOD replays & automatic S3 uploads), live auctions with anti-snipe + auto-bid, payments with escrow, real Stripe gateway integration (tokenization server-side), Whatnot-style wallets/ledgers, seller tools (tipping, direct messaging, buyer offers), rewards/coupons, notifications, reviews/ratings, giveaways, wishlist/favorites, unified search, and KYC seller verification. Mobile responsive dashboard drawer layouts are integrated. In-stream Buy Now is functional. Stripe Connect Express for seller payout onboarding is implemented.
 
-**Still under development** (see `status.md`): notifications system, reviews/ratings, giveaways, reports, wishlist, flash-sale engine, realtime viewer-count/presence, social login, unified search, auction pause/resume. `notifications` and `moderation` backend modules are scaffolded but empty.
+**Still under development / gaps** (see `status.md`): Phone social login, seller realtime online/offline indicator, clip editor backend, story feature backend, boost/promote backend, and integration/Flutter tests. The moderation backend module is scaffolded but empty.
 
 ---
 
@@ -106,11 +106,11 @@ musaabadam/                      # workspace root
 │   │   │   ├── errorHandler.js  # AppError class + central error middleware
 │   │   │   ├── validate.js      # express-validator result handler
 │   │   │   └── notFound.js      # 404
-│   │   ├── models/              # 19 Mongoose schemas (see §8)
+│   │   ├── models/              # 30 Mongoose schemas (see §8)
 │   │   ├── modules/<feature>/   # controllers/ services/ routes/ validators/
-│   │   │   ├── auth users products settings admin streams uploads
-│   │   │   ├── orders auctions payments chat shipping analytics
-│   │   │   └── moderation notifications      # scaffolded, EMPTY
+│   │   │   ├── admin analytics auctions auth chat dms favorites giveaways
+│   │   │   ├── moderation (scaffold only) notifications offers orders payments
+│   │   │   ├── products reports reviews search settings shipping streams uploads users
 │   │   ├── socket/
 │   │   │   ├── index.js          # initSocket(server), getIO(), registers handlers + sweeper
 │   │   │   ├── bidding.socket.js # JWT auth + join/leave/place-bid
@@ -132,7 +132,7 @@ musaabadam/                      # workspace root
 │       ├── data/models/         # DTOs (auth, product, stream, order, payment, chat…)
 │       ├── modules/<feature>/   # controllers/ screens/ bindings/ components/
 │       │   ├── auth home main_nav livestream seller seller_verification
-│       │   ├── profile activity payments shipping
+│       │   ├── profile activity payments shipping notifications
 │       └── routes/              # app_pages.dart (GetPage list) + app_routes.dart (names)
 │
 └── musaabadam_dashboard/        # Next.js admin
@@ -314,7 +314,7 @@ sequenceDiagram
 
 ## 8. Database Documentation
 
-MongoDB (Atlas) via Mongoose. **19 collections.** Conventions: `timestamps:true`; soft delete via `deletedAt` on user-facing entities; JWT payload uses `sub`.
+MongoDB (Atlas) via Mongoose. **30 collections.** Conventions: `timestamps:true`; soft delete via `deletedAt` on user-facing entities; JWT payload uses `sub`.
 
 | Model | Purpose | Key fields | Relationships / Indexes |
 |---|---|---|---|
@@ -336,6 +336,17 @@ MongoDB (Atlas) via Mongoose. **19 collections.** Conventions: `timestamps:true`
 | **ShippingProfile** | Seller shipping rates | sellerId, name, carrier(royal_mail/dpd/evri/ups), flatRate, freeShippingThreshold, rateTiers[{maxWeightKg,price}], handlingDays, domesticOnly, isDefault, deletedAt | sellerId→User |
 | **Message** | Live chat | streamId, senderId, type(message/reaction/system), text, senderName/AvatarUrl, status(visible/deleted/flagged), moderatedBy | streamId+createdAt |
 | **Follower** | Follow graph | followerId, followingId | unique pair |
+| **DirectMessage** | Private messages between users | senderId, receiverId, text, isRead | senderId+receiverId+createdAt, receiverId+senderId+createdAt |
+| **Favorite** | Wishlisted products | userId, productId | unique (userId, productId), userId+createdAt |
+| **Giveaway** | Stream prize giveaways | sellerId, streamId, productId, title, restriction, status, entryCount, winnerId, winnerName, drawnAt | streamId+status, sellerId+createdAt |
+| **GiveawayEntry** | Giveaway participants | giveawayId, userId, userName | unique (giveawayId, userId) |
+| **Notification** | User notifications | userId, type, title, body, actorId, actorName, actorAvatarUrl, data, isRead, readAt | userId+createdAt, userId+isRead |
+| **Offer** | Product price offers | productId, buyerId, sellerId, amount, status | productId, buyerId, sellerId |
+| **PlatformSetting** | Global admin/platform configs | type, allowedTags, globalMutedWords, selectiveMutedWords, allowedLanguages | unique type |
+| **Report** | Content moderation flags | reporterId, targetType, targetId, reason, details, status, resolvedBy, resolutionNote, resolvedAt | status+createdAt, targetType+targetId, unique (reporterId, targetType, targetId) |
+| **Review** | Order-linked buyer reviews | sellerId, buyerId, orderId, rating, comment, buyerName, buyerAvatarUrl, sellerReply, sellerRepliedAt, deletedAt | unique orderId, sellerId+deletedAt+createdAt |
+| **Reward** | Whatnot coupon details | userId, code, title, discountType, discountValue, minOrderValue, expiresAt, isUsed, usedAt | unique code |
+| **Tip** | Live tipping payments | buyerId, sellerId, streamId, amount, processingFee, totalAmount, message, providerIntentId, status | buyerId, sellerId, streamId |
 | **LegalContent** | Privacy/terms text | key, body | public |
 
 **Example — Order document (abridged):**
@@ -347,8 +358,6 @@ MongoDB (Atlas) via Mongoose. **19 collections.** Conventions: `timestamps:true`
   "status": "confirmed", "isPaid": true, "paidAt": "2026-06-29T...",
   "trackingNumber": null, "createdAt": "..." }
 ```
-
-**Missing collections** (planned, see `status.md`): `Notification`, `Review`, `Giveaway`(+`GiveawayEntry`), `Report`, `Favorite`.
 
 ---
 
@@ -391,13 +400,37 @@ POST /api/v1/auth/register
 `POST /` · `GET /my` · `GET /seller` · `GET /:id` · `POST /:id/cancel` · `PATCH /:id/status`.
 
 ### Payments (`/payments`)
-methods: `GET/POST /methods`, `DELETE /methods/:id` · checkout: `POST /orders/:id/checkout`, `/confirm`, `/refund`(seller) · wallet: `GET /wallet`, `GET /wallet/ledger` · payouts: `GET/POST /payouts`.
+methods: `GET/POST /methods`, `DELETE /methods/:id` · checkout: `POST /orders/:id/checkout`, `/confirm`, `/refund`(seller) · wallet: `GET /wallet`, `GET /wallet/ledger` · payouts: `GET/POST /payouts` · rewards: `GET /rewards` (user coupons), `POST /rewards/claim-challenge` (claim daily rewards) · tips: `POST /tips` (submit tip), `GET /tips/history` (tipping history).
 
 ### Chat (`/chat`)
 `GET /streams/:id/messages` · `POST /streams/:id/messages` · `DELETE /messages/:id`.
 
 ### Shipping (`/shipping`)
 profiles: `GET/POST /profiles`, `PATCH/DELETE /profiles/:id` · `GET /estimate/:productId` · `POST /orders/:id/label` (seller) · `GET /orders/:id/track`.
+
+### Search (`/search`)
+`GET /` with query `q` and optional `type` (all, sellers, products, streams) and `filter` (live, upcoming, ended, auction, buy_now).
+
+### Notifications (`/notifications`)
+`GET /` (list notifications), `GET /unread-count` (count unread), `POST /read-all` (mark all read), `PATCH /:notificationId/read` (mark specific read).
+
+### Reviews (`/reviews`)
+`GET /reviewable` (orders awaiting review), `POST /` (submit review), `GET /seller/:sellerId` (reviews for seller).
+
+### Giveaways (`/giveaways`)
+`POST /` (create, seller), `POST /:giveawayId/draw` (draw, seller), `POST /:giveawayId/cancel` (cancel, seller) · `POST /:giveawayId/join` (join, viewer), `GET /stream/:streamId` (list stream giveaways).
+
+### Reports (`/reports`)
+`POST /` (file report) · admin: `GET /` (list), `GET /stats` (moderation stats), `PATCH /:reportId` (update status/resolve).
+
+### Favorites (`/favorites`)
+`GET /` (list wishlisted products), `POST /:productId` (toggle favorite status).
+
+### Offers (`/offers`)
+`POST /` (submit product offer) · list: `GET /buyer` (sent), `GET /seller` (received) · controls: `PATCH /:offerId/status` (accept/decline).
+
+### Direct Messages (`/dms`)
+`GET /conversations` (list inbox conversations), `GET /messages/:partnerId` (get message history), `POST /messages/:partnerId` (send direct message).
 
 ### Analytics (`/analytics`)
 `GET /seller/overview|revenue` · `GET /admin/overview|revenue` (admin).
@@ -625,12 +658,13 @@ npm run lint
 
 ## 21. Known Limitations
 
-- **Empty modules:** `notifications`, `moderation` (scaffold only). **Missing features:** notifications, reviews, giveaways, reports, wishlist, flash-sale engine, social login, unified search, auction pause/resume, realtime viewer count/presence (see `status.md`).
-- **Payments = mock** unless Stripe configured; **no Stripe Connect** seller onboarding.
+- **Empty modules:** `moderation` (scaffold only).
+- **Missing features:** Firebase Cloud Messaging backend/app integration (no-op stub present), Phone/SMS OTP social login, seller online/offline presence indicator, clip editor backend, story feature backend, boost/promote backend, integration and Flutter tests (see `status.md`).
+- **Payments:** Stripe integration is functional but falls back to mock payment provider in dev if `STRIPE_SECRET_KEY` is not configured. Stripe Connect Express seller onboarding is fully implemented.
 - **Realtime not horizontally scalable** (in-process sockets + timers; no Redis adapter).
-- **In-memory mutes/bans** lost on restart; no persistent ban model; no pin-message.
+- **In-memory chat mutes** are non-persistent, but per-stream user bans are persisted in `Stream.bannedUserIds` on the stream document. Chat pin messages are implemented (`pin-message` -> `message-pinned`).
 - **ESLint config mismatch** (`eslint@10` expects flat `eslint.config.js`; project has legacy `.eslintrc`) — `npm run lint` fails. Not a runtime issue.
-- **Some app screens still mock/partial:** notifications, reviews tab, receipts, seller profile show tabs, checkout address picker; taxes not calculated.
+- **Some app screens still mock/partial:** checkout address picker, region VAT calculation is stubbed.
 - **`.env.example` leaks sample credentials** — scrub before prod.
 - **No tests beyond a small backend suite** (11 tests); no app/dashboard tests; no CI.
 - **Static `/uploads`** is a temporary local fallback vs S3.
@@ -668,15 +702,14 @@ npm run lint
 
 ## 24. Future Roadmap (Inferred)
 
-**Confirmed (empty scaffolds / explicit TODOs):** build `notifications` + `moderation` modules; S3 wiring for uploads; referral reward values; persistent auction sweeper/backup.
+**Confirmed (empty scaffolds / explicit TODOs):** build `moderation` modules; referral reward values.
 
-**Inferred from `status.md` priorities & partial code:**
-- *Phase 1:* Notifications (model+FCM+realtime), realtime viewer count/presence + stream started/ended feed broadcast, Buy-Now realtime (pin/sold-out), Reviews & ratings.
-- *Phase 2:* Giveaways, auction pause/resume/cancel + configurable increment, persistent moderation (ban/pin) + dashboard moderation page, unified search+filters.
-- *Phase 3:* Flash-sale engine, wishlist/favorites, checkout tax + Stripe Connect, dashboard orders/payouts/livestream pages.
-- *Phase 4:* Social login, recommendation/trending feeds + infinite scroll, chat replies/mentions, reactions overlay, draft/visibility for shows.
-
-*(Distinguish: “empty module” + “// deferred” comments = confirmed intent; phase grouping = inferred from the audit.)*
+**Inferred from status.md priorities & partial code:**
+- *Phase 1:* Firebase Cloud Messaging (integrate `pushProvider.js` with `firebase-admin` and Flutter `firebase_messaging` package).
+- *Phase 2:* Phone social login (Phone/SMS OTP authentication).
+- *Phase 3:* Realtime presence indicator for seller online/offline status on profiles.
+- *Phase 4:* Shell screen implementations (Clip editor backend, Story feature backend, Boost/promote backend).
+- *Phase 5:* Expand test coverage (backend integration tests in `tests/integration/`, Flutter tests in `test/`, and admin dashboard testing).
 
 ---
 

@@ -20,6 +20,7 @@ const isSeller = requireRole(ROLES.SELLER);
 router.get('/methods', authenticateUser, ctrl.listMethods);
 router.post('/methods', authenticateUser, ...addMethodValidator, validate, ctrl.addMethod);
 router.delete('/methods/:methodId', authenticateUser, ...methodIdParam, validate, ctrl.removeMethod);
+router.patch('/methods/:methodId/default', authenticateUser, ...methodIdParam, validate, ctrl.setDefaultMethod);
 
 // ── Checkout / escrow ────────────────────────────────────────────────────────
 router.post('/orders/:orderId/checkout', authenticateUser, ...checkoutValidator, validate, ctrl.checkout);
