@@ -7,5 +7,6 @@ const router = express.Router();
 router.get('/privacy-policy', controller.getPrivacyPolicy);
 router.get('/terms', controller.getTerms);
 router.get('/platform', controller.getPlatformSettings);
+router.get('/faqs', controller.getFaqs);
 
 module.exports = router;

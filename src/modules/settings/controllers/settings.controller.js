@@ -82,4 +82,61 @@ const updatePlatformSettings = async (req, res, next) => {
   }
 };
 
-module.exports = { getPrivacyPolicy, getTerms, updatePrivacyPolicy, updateTerms, getPlatformSettings, updatePlatformSettings };
+const getFaqs = async (req, res, next) => {
+  try {
+    const result = await settingsService.listFaqs(req.query.type);
+    res.json({ success: true, data: { faqs: result } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const listFaqs = async (req, res, next) => {
+  try {
+    const result = await settingsService.listFaqs(req.query.type);
+    res.json({ success: true, data: { faqs: result } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const createFaq = async (req, res, next) => {
+  try {
+    const result = await settingsService.createFaq(req.body, req.admin._id);
+    res.status(201).json({ success: true, data: { faq: result } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateFaq = async (req, res, next) => {
+  try {
+    const result = await settingsService.updateFaq(req.params.faqId, req.body, req.admin._id);
+    res.json({ success: true, data: { faq: result } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deleteFaq = async (req, res, next) => {
+  try {
+    await settingsService.deleteFaq(req.params.faqId);
+    res.json({ success: true, message: 'FAQ deleted successfully' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  getPrivacyPolicy,
+  getTerms,
+  updatePrivacyPolicy,
+  updateTerms,
+  getPlatformSettings,
+  updatePlatformSettings,
+  getFaqs,
+  listFaqs,
+  createFaq,
+  updateFaq,
+  deleteFaq,
+};

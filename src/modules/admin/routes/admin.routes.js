@@ -98,6 +98,10 @@ router.patch('/streams/:streamId/terminate', canTerminateStreams, monitoringCtrl
 router.put('/settings/privacy-policy', updateLegalContentValidator, validate, settingsCtrl.updatePrivacyPolicy);
 router.put('/settings/terms', updateLegalContentValidator, validate, settingsCtrl.updateTerms);
 router.put('/settings/platform', validate, settingsCtrl.updatePlatformSettings);
+router.get('/settings/faqs', settingsCtrl.listFaqs);
+router.post('/settings/faqs', settingsCtrl.createFaq);
+router.put('/settings/faqs/:faqId', settingsCtrl.updateFaq);
+router.delete('/settings/faqs/:faqId', settingsCtrl.deleteFaq);
 
 // ── Uploads ────────────────────────────────────────────────────────────────────
 const uploadCtrl = require('../../uploads/controllers/upload.controller');
