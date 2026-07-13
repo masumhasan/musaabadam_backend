@@ -16,7 +16,7 @@ const recomputeSellerRating = async (sellerId) => {
   ]);
   const averageRating = agg ? Math.round(agg.avg * 10) / 10 : 0;
   const ratingCount = agg ? agg.count : 0;
-  await User.updateOne({ _id: sellerId }, { $set: { averageRating, ratingCount } });
+  await User.updateOne({ _id: sellerId }, { $set: { 'sellerProfile.averageRating': averageRating, 'sellerProfile.ratingCount': ratingCount } });
   return { averageRating, ratingCount };
 };
 
@@ -66,7 +66,7 @@ const listSellerReviews = async (sellerId, { page = 1, limit = 20 } = {}) => {
   const [reviews, total, seller] = await Promise.all([
     Review.find({ sellerId, deletedAt: null }).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
     Review.countDocuments({ sellerId, deletedAt: null }),
-    User.findById(sellerId).select('averageRating ratingCount'),
+    User.findById(sellerId).select('sellerProfile'),
   ]);
   return {
     reviews: reviews.map((r) => ({
@@ -77,8 +77,8 @@ const listSellerReviews = async (sellerId, { page = 1, limit = 20 } = {}) => {
       sellerReply: r.sellerReply ?? null,
       createdAt: r.createdAt,
     })),
-    averageRating: seller?.averageRating ?? 0,
-    ratingCount: seller?.ratingCount ?? 0,
+    averageRating: seller?.sellerProfile?.averageRating ?? 0,
+    ratingCount: seller?.sellerProfile?.ratingCount ?? 0,
     total,
     page: Number(page),
     limit: Number(limit),
