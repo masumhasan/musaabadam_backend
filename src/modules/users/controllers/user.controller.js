@@ -100,4 +100,13 @@ const applyAsSeller = async (req, res, next) => {
   }
 };
 
-module.exports = { getMyProfile, getReferralInfo, updateMyProfile, getPublicProfile, getAddresses, addAddress, updateAddress, deleteAddress, updateNotificationPreferences, updateAppPreferences, applyAsSeller };
+const updateKyc = async (req, res, next) => {
+  try {
+    const profile = await userService.updateKyc(req.user._id, req.body);
+    return success(res, profile, 'KYC documents updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getMyProfile, getReferralInfo, updateMyProfile, getPublicProfile, getAddresses, addAddress, updateAddress, deleteAddress, updateNotificationPreferences, updateAppPreferences, applyAsSeller, updateKyc };

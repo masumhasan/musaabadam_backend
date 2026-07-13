@@ -145,9 +145,31 @@ const applyAsSeller = async (userId, data) => {
   return user.toPrivateProfile();
 };
 
-// Returns the user's unique referral code (generating one on first access for
-// legacy accounts) plus invite stats. Reward VALUES are set later; for now
-// `credit` mirrors rewardPoints and the counts are derived from referrals.
+const updateKyc = async (userId, data) => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+
+  if (!user.sellerProfile) {
+    user.sellerProfile = {
+      status: SELLER_STATUS.PENDING,
+      primaryCategory: 'General',
+      appliedAt: new Date(),
+    };
+  }
+
+  if (data.identityDocUrl !== undefined) user.sellerProfile.identityDocUrl = data.identityDocUrl;
+  if (data.businessLicenseUrl !== undefined) user.sellerProfile.businessLicenseUrl = data.businessLicenseUrl;
+
+  // If not already approved, set status to pending to request review
+  if (user.sellerProfile.status !== SELLER_STATUS.APPROVED) {
+    user.sellerProfile.status = SELLER_STATUS.PENDING;
+    user.sellerProfile.appliedAt = new Date();
+  }
+
+  await user.save();
+  return user.toPrivateProfile();
+};
+
 const getReferralInfo = async (userId) => {
   const user = await User.findById(userId).select('referralCode rewardPoints');
   if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
@@ -161,7 +183,6 @@ const getReferralInfo = async (userId) => {
   const referredIds = await User.find({ referredBy: userId, deletedAt: null }).distinct('_id');
   const totalReferred = referredIds.length;
 
-  // "Complete" = a referred user who has made at least one paid purchase.
   const completedBuyerIds = totalReferred
     ? await Order.distinct('buyerId', { buyerId: { $in: referredIds }, isPaid: true })
     : [];
@@ -171,7 +192,7 @@ const getReferralInfo = async (userId) => {
   return {
     referralCode: user.referralCode,
     stats: {
-      credit: user.rewardPoints || 0, // reward value logic to be defined later
+      credit: user.rewardPoints || 0,
       complete,
       pending,
       totalReferred,
@@ -190,5 +211,6 @@ module.exports = {
   updateNotificationPreferences,
   updateAppPreferences,
   applyAsSeller,
+  updateKyc,
   getReferralInfo,
 };

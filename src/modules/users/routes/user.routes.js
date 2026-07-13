@@ -26,6 +26,11 @@ router.post('/seller-application', [
   body('businessLicenseUrl').optional().isString().trim(),
 ], validate, userController.applyAsSeller);
 
+router.patch('/kyc', [
+  body('identityDocUrl').optional().isString().trim(),
+  body('businessLicenseUrl').optional().isString().trim(),
+], validate, userController.updateKyc);
+
 // ─── Own profile ──────────────────────────────────────────────────────────────
 
 router.get('/profile', userController.getMyProfile);
