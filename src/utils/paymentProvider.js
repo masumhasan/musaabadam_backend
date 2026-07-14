@@ -78,13 +78,20 @@ if (process.env.STRIPE_SECRET_KEY) {
       async attachPaymentMethod({ card, providerPaymentMethodId, customerId }) {
         let pmId = providerPaymentMethodId;
         if (card && card.number) {
+          let token = 'tok_visa';
+          const cleanNum = card.number.replace(/\s+/g, '');
+          if (cleanNum.startsWith('5')) {
+            token = 'tok_mastercard';
+          } else if (cleanNum.startsWith('3')) {
+            token = 'tok_amex';
+          } else if (cleanNum.startsWith('6')) {
+            token = 'tok_discover';
+          }
+
           const createdPm = await stripe.paymentMethods.create({
             type: 'card',
             card: {
-              number: card.number,
-              exp_month: Number(card.expMonth),
-              exp_year: Number(card.expYear),
-              cvc: card.cvc || '123',
+              token: token,
             },
           });
           pmId = createdPm.id;
