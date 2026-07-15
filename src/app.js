@@ -19,10 +19,12 @@ const isDevOrigin = (origin) => {
 };
 
 const resolveOrigin = (origin, callback) => {
+  if (!origin) return callback(null, true);
   if (process.env.NODE_ENV !== 'production') {
     return callback(null, isDevOrigin(origin));
   }
   const allowed = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+  if (allowed.includes('*')) return callback(null, true);
   callback(null, allowed.includes(origin));
 };
 
