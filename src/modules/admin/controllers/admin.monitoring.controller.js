@@ -103,4 +103,25 @@ const listOffers = async (req, res, next) => {
   }
 };
 
-module.exports = { listOrders, listPayouts, listStreams, terminateStream, listOffers };
+// GET /admin/tips — platform-wide tip monitoring.
+const listTips = async (req, res, next) => {
+  try {
+    const Tip = require('../../../models/Tip');
+    const { page, limit, skip } = paginate(req.query);
+    const filter = {};
+    const [tips, total] = await Promise.all([
+      Tip.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('buyerId', 'username displayName email')
+        .populate('sellerId', 'username displayName email'),
+      Tip.countDocuments(filter),
+    ]);
+    return success(res, { tips, total, page, limit, totalPages: Math.ceil(total / limit) }, 'Tips');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { listOrders, listPayouts, listStreams, terminateStream, listOffers, listTips };

@@ -613,7 +613,7 @@ const processTip = async (buyerId, { sellerId, streamId, amount, paymentMethodId
 
 const getReceivedTips = async (sellerId) => {
   const Tip = require('../../../models/Tip');
-  return Tip.find({ sellerId, status: 'succeeded' }).populate('buyerId', 'username email').sort({ createdAt: -1 });
+  return Tip.find({ sellerId, status: 'succeeded' }).populate('buyerId', 'username email displayName avatarUrl').sort({ createdAt: -1 });
 };
 
 const getSentTips = async (buyerId) => {

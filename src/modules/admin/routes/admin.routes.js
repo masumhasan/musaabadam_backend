@@ -92,6 +92,7 @@ router.get('/orders', canViewAnalytics, monitoringCtrl.listOrders);
 router.get('/payouts', canApprovePayouts, monitoringCtrl.listPayouts);
 router.get('/streams', canTerminateStreams, monitoringCtrl.listStreams);
 router.get('/offers', canViewAnalytics, monitoringCtrl.listOffers);
+router.get('/tips', canViewAnalytics, monitoringCtrl.listTips);
 router.patch('/streams/:streamId/terminate', canTerminateStreams, monitoringCtrl.terminateStream);
 
 // ── Settings — legal content (any authenticated admin) ────────────────────────
