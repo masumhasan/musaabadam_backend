@@ -2,7 +2,7 @@
 
 > Full codebase audit of `musaabadam_backend`, `musaabadam_app`, `musaabadam_dashboard`, and `landing`.
 > Legend: ✅ Fully Implemented & Integrated · 🟡 Partial (functional but has known gaps) · ❌ Missing
-> Last updated: **2026-07-13** (comprehensive update with KYC, DMs, and Offers features)
+> Last updated: **2026-07-15** (added back navigation, payouts history screen, and home screen pull-to-refresh)
 
 Companion living docs: [`sellerflow.md`](./sellerflow.md), [`userflow.md`](./userflow.md), [`devdoc.md`](./devdoc.md).
 
@@ -74,10 +74,11 @@ Everything below has been verified present in the codebase — models, services,
 - Refunds (full + partial), wallet + immutable ledger, seller payouts.
 - Platform fee: 10%, currency: GBP, min payout: £10
 
-### 1.9 Seller Payout Onboarding (Stripe Connect)
+### 1.9 Seller Payout Onboarding & History
 - `startPayoutOnboarding` / `getPayoutAccount` (creates connected account, returns onboarding link)
 - Full Stripe Express integration for payouts
 - Flutter: "Set up payouts" UI on seller payout screen
+- **Payout Transactions History**: Added a dedicated Payout History screen showing paginated payout records with colored status badges (green for paid, blue for processing, amber for pending, red for failed), infinite scrolling, and pull-to-refresh. Wired the "Transactions" tab and "View all" buttons to route to this screen.
 
 ### 1.10 Whatnot-Style Reward & Coupon System
 - **Reward model**: Tracks coupon attributes (`code`, `discountType`, `discountValue`, `minOrderValue`, `expiresAt`, `isUsed`).
@@ -139,10 +140,12 @@ Everything below has been verified present in the codebase — models, services,
 - REST `/search` with Live/Upcoming/Ended/Auction/Buy-now filters
 - **Home Search Bar**: Click to search wrapped functional, navigating directly to the functional Search Screen.
 
-### 1.19 Discovery Feeds + Infinite Scroll
+### 1.19 Discovery Feeds, Pull-to-Refresh & Intercept Navigation
 - `stream.service.getFeed` — live / trending (by viewers) / following / recommended (category affinity)
 - `GET /streams/feed?feed=` with pagination
 - Flutter: `HomeScreenController` with feed ChoiceChips, `loadMoreStreams` infinite scroll
+- **Home Screen Pull-to-Refresh**: Pulling down on the Home feed reloads categories, live streams, and past shows concurrently.
+- **Custom Back Navigation Interception**: Double-pressing back on Home prompts with a "Press back again to exit" notification. Tapping back on other bottom bar tabs routes the user back to Home instead of exiting.
 
 ### 1.20 Dashboard (Next.js — Admin Panel)
 - Auth (admin login, session, ProtectedRoute)
@@ -224,7 +227,32 @@ Everything below has been verified present in the codebase — models, services,
 
 ---
 
-## 4. Test Coverage
+## 4. Inactive Shell Screens & Incomplete Actions (❌/🟡)
+
+The following views, buttons, and hyperlinks exist in the mobile application but function only as static templates or empty navigation targets:
+
+- **Order Support Form submission** (`OrderSupportScreen`):
+  - Tapping "Submit" in the support ticket form runs an empty callback `onPressed: () {}`. There is no ticket dispatch service connected.
+- **Support Categories & Sub-items**:
+  - Sub-views under `AccountIssuesScreen`, `GeneralIssuesScreen`, `PayoutScreen`, and `AccountInformationUpdateScreen` render static categories (e.g. Deletion, Banning, Inquiries) without navigation hooks or submit handlers.
+- **Seller Promotions Manager** (`PromoteToolsScreen`):
+  - Inactive tabs (Overview vs Promoted Shows) and empty actions on both "Learn to promote" and "Ready to promote" tiles (`onClick: () {}`).
+- **Gated Categories applications** (`PermissionsScreen`):
+  - The "Apply Now" buttons adjacent to listed gated categories are dead links with empty callbacks `onPressed: () {}`.
+- **Sales Tax Exemption application** (`SalesTaxExemptionScreen`):
+  - Exemption details are hardcoded ("Adam", "Not Approved", "20 May 2026"), and the "Apply Now" button has an empty click handler.
+- **User Reports History** (`UserReportsScreen`):
+  - Renders only toggling filter chips (All, Submitted, Closed) with no data fetching or listing.
+- **Snap/Clip Editing** (`EditSnapScreen`):
+  - The thumbnail gallery is commented out, and tapping "Save" has a blank handler that does not update or navigate back.
+- **Community Story Player** (`StoryScreen`):
+  - Completely static template with hardcoded user/interaction parameters, and the "Send message" input and reaction buttons are inactive.
+- **Livestream Host Boosts** (`BoostScreen`):
+  - "Boost Show" button redirects to the card entry screen, but the transaction logic for applying the boost does not exist. "Learn More" links go to static help cards.
+
+---
+
+## 5. Test Coverage
 
 | Area | Status |
 |---|---|
@@ -235,7 +263,7 @@ Everything below has been verified present in the codebase — models, services,
 
 ---
 
-## 5. Realtime Events Inventory
+## 6. Realtime Events Inventory
 
 ### ✅ Implemented Socket Events
 
@@ -271,7 +299,7 @@ Everything below has been verified present in the codebase — models, services,
 
 ---
 
-## 6. How to Test Core Features
+## 7. How to Test Core Features
 
 ### 6.1 Stripe Payment Flow
 1. **Setup**: Inject Stripe test environment keys (`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`) in the backend `.env`.
@@ -309,8 +337,8 @@ Everything below has been verified present in the codebase — models, services,
 
 ---
 
-## 7. Status
+## 8. Status
 
-✅ **Audit complete — 2026-07-13.** All core features, layout issues, and transient network errors have been resolved.
+✅ **Audit complete — 2026-07-15.** All core features, layout issues, transient network errors, custom back navigation tabs interception, payouts history lists, and home pull-to-refresh feeds have been fully resolved.
 
 The core commerce loop (browse → stream → bid/buy → pay → ship → deliver) is fully wired end-to-end. Recent session timeouts, backstage video failures, default stream placeholders, sorting discrepancies, missing user avatars, CORS preflight blockages, S3 video renaming/notifications, mobile-responsive dashboard drawer layouts, seller tools, Stripe payments, and Whatnot-style wallets/rewards have all been fully integrated.
