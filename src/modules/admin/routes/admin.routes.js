@@ -95,14 +95,17 @@ router.get('/offers', canViewAnalytics, monitoringCtrl.listOffers);
 router.get('/tips', canViewAnalytics, monitoringCtrl.listTips);
 router.patch('/streams/:streamId/terminate', canTerminateStreams, monitoringCtrl.terminateStream);
 
-// ── Settings — legal content (any authenticated admin) ────────────────────────
+// ── Settings — legal content & premier shop (any authenticated admin) ─────────
 router.put('/settings/privacy-policy', updateLegalContentValidator, validate, settingsCtrl.updatePrivacyPolicy);
 router.put('/settings/terms', updateLegalContentValidator, validate, settingsCtrl.updateTerms);
 router.put('/settings/platform', validate, settingsCtrl.updatePlatformSettings);
+router.get('/settings/premier-shop', settingsCtrl.getPremierShopSettings);
+router.put('/settings/premier-shop', validate, settingsCtrl.updatePremierShopSettings);
 router.get('/settings/faqs', settingsCtrl.listFaqs);
 router.post('/settings/faqs', settingsCtrl.createFaq);
 router.put('/settings/faqs/:faqId', settingsCtrl.updateFaq);
 router.delete('/settings/faqs/:faqId', settingsCtrl.deleteFaq);
+
 
 // ── Uploads ────────────────────────────────────────────────────────────────────
 const uploadCtrl = require('../../uploads/controllers/upload.controller');

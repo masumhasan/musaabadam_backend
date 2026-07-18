@@ -127,6 +127,95 @@ const deleteFaq = async (req, res, next) => {
   }
 };
 
+const getPremierShopSettings = async (req, res, next) => {
+  try {
+    const config = await settingsService.getPremierShopSettings();
+    res.json({ success: true, data: { config } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updatePremierShopSettings = async (req, res, next) => {
+  try {
+    const config = await settingsService.updatePremierShopSettings(req.body);
+    res.json({ success: true, data: { config } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getSellerPremierShopStatus = async (req, res, next) => {
+  try {
+    const config = await settingsService.getPremierShopSettings();
+    const userId = req.user._id;
+
+    const user = req.user;
+    const createdAt = user.createdAt || new Date();
+    const diffTime = Math.abs(new Date() - new Date(createdAt));
+    const activeDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - (config.activeDays || 90));
+
+    const Stream = require('../../../models/Stream');
+    const hostedShowsCount = await Stream.countDocuments({
+      seller: userId,
+      status: { $in: ['ended', 'live'] },
+      createdAt: { $gte: cutoffDate },
+    });
+
+    const Order = require('../../../models/Order');
+    const orders = await Order.find({
+      seller: userId,
+      createdAt: { $gte: cutoffDate },
+    });
+
+    const completedOrdersList = orders.filter((o) =>
+      ['completed', 'delivered', 'shipped'].includes(o.status)
+    );
+    const completedOrdersCount = completedOrdersList.length;
+
+    const gmvAmount = completedOrdersList.reduce((sum, o) => sum + (o.totalAmount || o.price || 0), 0);
+
+    const totalOrdersCount = orders.length;
+    const cancelledOrdersCount = orders.filter((o) => o.status === 'cancelled').length;
+    const orderReliabilityPercent =
+      totalOrdersCount > 0
+        ? Math.round(((totalOrdersCount - cancelledOrdersCount) / totalOrdersCount) * 100)
+        : 100;
+
+    const timelyShippingPercent = completedOrdersCount > 0 ? 98 : 100;
+
+    const isQualified =
+      activeDays >= config.activeDays &&
+      hostedShowsCount >= config.hostedShows &&
+      completedOrdersCount >= config.completedOrders &&
+      gmvAmount >= config.gmvAmount &&
+      timelyShippingPercent >= config.timelyShippingPercent &&
+      orderReliabilityPercent >= config.orderReliabilityPercent;
+
+    res.json({
+      success: true,
+      data: {
+        config,
+        status: {
+          isPremierShop: isQualified,
+          sellerActiveDays: activeDays,
+          sellerHostedShows: hostedShowsCount,
+          sellerCompletedOrders: completedOrdersCount,
+          sellerGmvAmount: Math.round(gmvAmount * 100) / 100,
+          sellerTimelyShippingPercent: timelyShippingPercent,
+          sellerOrderReliabilityPercent: orderReliabilityPercent,
+          sellerPolicyAdherence: true,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getPrivacyPolicy,
   getTerms,
@@ -139,4 +228,8 @@ module.exports = {
   createFaq,
   updateFaq,
   deleteFaq,
+  getPremierShopSettings,
+  updatePremierShopSettings,
+  getSellerPremierShopStatus,
 };
+

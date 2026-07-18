@@ -33,6 +33,45 @@ const deleteFaq = async (id) => {
   return Faq.findByIdAndDelete(id);
 };
 
+const PremierShopSetting = require('../../../models/PremierShopSetting');
+
+const getPremierShopSettings = async () => {
+  let doc = await PremierShopSetting.findOne({ type: 'global' });
+  if (!doc) {
+    doc = await PremierShopSetting.create({ type: 'global' });
+  }
+  return doc;
+};
+
+const updatePremierShopSettings = async (data) => {
+  let doc = await PremierShopSetting.findOne({ type: 'global' });
+  if (!doc) {
+    doc = new PremierShopSetting({ type: 'global' });
+  }
+
+  const fields = [
+    'activeDays',
+    'hostedShows',
+    'completedOrders',
+    'gmvAmount',
+    'timelyShippingPercent',
+    'shippingHours',
+    'orderReliabilityPercent',
+    'policyAdherenceText',
+    'commissionDiscountPercent',
+    'perks',
+  ];
+
+  fields.forEach((field) => {
+    if (data[field] !== undefined) {
+      doc[field] = data[field];
+    }
+  });
+
+  await doc.save();
+  return doc;
+};
+
 module.exports = {
   getContent,
   updateContent,
@@ -40,4 +79,7 @@ module.exports = {
   createFaq,
   updateFaq,
   deleteFaq,
+  getPremierShopSettings,
+  updatePremierShopSettings,
 };
+
