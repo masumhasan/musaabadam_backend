@@ -36,11 +36,15 @@ const upsertStreamUser = async (userId, name, imageUrl) => {
 // when creating the call). These wrappers are best-effort — they never throw,
 // so a recording hiccup can't block the live-stream lifecycle.
 
+const logger = require('./logger');
+
 const startCallRecording = async (callType, callId) => {
   try {
     await getStreamClient().video.call(callType, callId).startRecording();
+    logger.info(`startCallRecording succeeded for ${callType}:${callId}`);
     return true;
   } catch (err) {
+    logger.warn(`startCallRecording failed for ${callType}:${callId}: ${err.message}`);
     return false;
   }
 };
@@ -48,11 +52,14 @@ const startCallRecording = async (callType, callId) => {
 const stopCallRecording = async (callType, callId) => {
   try {
     await getStreamClient().video.call(callType, callId).stopRecording();
+    logger.info(`stopCallRecording succeeded for ${callType}:${callId}`);
     return true;
   } catch (err) {
+    logger.warn(`stopCallRecording failed for ${callType}:${callId}: ${err.message}`);
     return false;
   }
 };
+
 
 // Verify an incoming GetStream webhook using the x-signature header.
 // `rawBody` must be the unparsed request body (Buffer/string).
