@@ -113,8 +113,11 @@ const getStreamWebhook = async (req, res) => {
   // call_cid looks like "livestream:stream_<sellerId>_<ts>" — the part after ':' is our callId.
   const callId = event?.call_cid ? String(event.call_cid).split(':').slice(1).join(':') : null;
 
+  logger.info(`getstream webhook received: ${event?.type} for callId: ${callId}`);
+
   try {
     if (event.type === 'call.recording_ready' && callId) {
+
       await svc.ingestRecording(callId, event.call_recording || {});
     } else if (event.type === 'call.recording_failed' && callId) {
       await svc.markRecordingFailed(callId);
