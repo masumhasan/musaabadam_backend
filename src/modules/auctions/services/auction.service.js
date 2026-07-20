@@ -8,7 +8,8 @@ const { NOTIFICATION_TYPE } = require('../../../models/Notification');
 const { AppError } = require('../../../middleware/errorHandler');
 const paymentService = require('../../payments/services/payment.service');
 const PaymentMethod = require('../../../models/PaymentMethod');
-const { AUCTION, PRODUCT_STATUS } = require('../../../config/constants');
+const { AUCTION, PRODUCT_STATUS, LISTING_TYPES } = require('../../../config/constants');
+
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
