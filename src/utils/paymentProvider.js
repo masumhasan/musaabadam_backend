@@ -108,25 +108,28 @@ if (process.env.STRIPE_SECRET_KEY) {
       },
 
       async createPaymentIntent({ amount, currency, metadata, customerId, paymentMethodId }) {
-        const intent = await stripe.paymentIntents.create({
+        const intentParams = {
           amount: Math.round(amount * 100),
           currency,
           customer: customerId,
           payment_method: paymentMethodId,
           metadata,
           capture_method: 'automatic',
-        });
+          automatic_payment_methods: {
+            enabled: true,
+            allow_redirects: 'never',
+          },
+        };
+        const intent = await stripe.paymentIntents.create(intentParams);
         return { id: intent.id, clientSecret: intent.client_secret, status: intent.status, amount, currency };
       },
 
       async confirmPaymentIntent({ intentId, paymentMethodId }) {
         const opts = paymentMethodId ? { payment_method: paymentMethodId } : {};
-        const intent = await stripe.paymentIntents.confirm(intentId, {
-          ...opts,
-          return_url: 'https://bidsrush.com/payment/callback',
-        });
+        const intent = await stripe.paymentIntents.confirm(intentId, opts);
         return { id: intent.id, status: intent.status };
       },
+
 
 
       async refund({ intentId, amount }) {
