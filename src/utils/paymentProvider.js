@@ -120,9 +120,14 @@ if (process.env.STRIPE_SECRET_KEY) {
       },
 
       async confirmPaymentIntent({ intentId, paymentMethodId }) {
-        const intent = await stripe.paymentIntents.confirm(intentId, { payment_method: paymentMethodId });
+        const opts = paymentMethodId ? { payment_method: paymentMethodId } : {};
+        const intent = await stripe.paymentIntents.confirm(intentId, {
+          ...opts,
+          return_url: 'https://bidsrush.com/payment/callback',
+        });
         return { id: intent.id, status: intent.status };
       },
+
 
       async refund({ intentId, amount }) {
         const refund = await stripe.refunds.create({
