@@ -91,25 +91,27 @@ const uploadRemoteFileToS3 = async ({ sourceUrl, folder, keyPrefix, filename, co
   if (!bucket) throw new AppError('AWS_S3_BUCKET_NAME not configured', HTTP_STATUS.INTERNAL_ERROR);
 
   const res = await fetch(sourceUrl);
-  if (!res.ok || !res.body) {
+  if (!res.ok) {
     throw new AppError(`Failed to fetch source file (status ${res.status})`, HTTP_STATUS.BAD_REQUEST);
   }
+
+  const arrayBuffer = await res.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
 
   const name = filename || `${uuidv4()}.${ext}`;
   const segments = [FOLDER_PATHS[folder], keyPrefix, name].filter(Boolean);
   const key = segments.join('/');
-  const contentLength = res.headers.get('content-length');
 
   const command = new PutObjectCommand({
     Bucket: bucket,
     Key: key,
-    Body: Readable.fromWeb(res.body),
+    Body: buffer,
     ContentType: contentType,
-    // ContentLength lets the SDK upload as a single PUT without buffering the stream
-    ...(contentLength ? { ContentLength: Number(contentLength) } : {}),
+    ContentLength: buffer.length,
   });
 
   await getS3Client().send(command);
+
 
   const region = process.env.AWS_REGION;
   const publicUrl = `https://${bucket}.s3.${region}.amazonaws.com/${key}`;

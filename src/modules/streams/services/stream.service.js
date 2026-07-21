@@ -384,10 +384,10 @@ const getReplays = async ({ categoryId, sellerId, page = 1, limit = 20 }) => {
   const query = {
     deletedAt: null,
     status: STREAM_STATUS.ENDED,
-    recordingStatus: RECORDING_STATUS.READY,
   };
   if (categoryId) query.categoryId = categoryId;
   if (sellerId) query.sellerId = sellerId;
+
 
   const skip = (Number(page) - 1) * Number(limit);
   const [streams, total] = await Promise.all([
@@ -503,11 +503,26 @@ const ingestRecording = async (callId, recording) => {
 
     return stream;
   } catch (err) {
-    logger.error(`recording_ready: failed to store recording for ${stream._id}: ${err.message}`);
+    logger.error(`recording_ready: S3 upload failed for ${stream._id}: ${err.message}`);
+    if (sourceUrl) {
+      stream.recordingUrl = sourceUrl;
+      stream.isRecorded = true;
+      stream.recordingStatus = RECORDING_STATUS.READY;
+      if (recording.start_time && recording.end_time) {
+        stream.recordingDurationSeconds = Math.max(
+          0,
+          Math.floor((new Date(recording.end_time) - new Date(recording.start_time)) / 1000)
+        );
+      }
+      await stream.save();
+      logger.info(`recording_ready: fallback to direct GetStream URL for ${stream._id}`);
+      return stream;
+    }
     stream.recordingStatus = RECORDING_STATUS.FAILED;
     await stream.save();
     throw err;
   }
+
 };
 
 const markRecordingFailed = async (callId) => {
