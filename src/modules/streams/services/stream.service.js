@@ -116,10 +116,28 @@ const startStream = async (sellerId, streamId) => {
 
   stream.status = STREAM_STATUS.LIVE;
   stream.startedAt = new Date();
+
+
+  // Get or create the call session in GetStream so the call is active before starting recording
+  try {
+    const client = getStreamClient();
+    await client.video.call(stream.callType, stream.callId).getOrCreate({
+      data: {
+        created_by_id: String(sellerId),
+        settings_override: {
+          recording: {
+            mode: 'available',
+          },
+        },
+      },
+    });
+  } catch (err) {
+    logger.warn(`startStream: call.getOrCreate warning for ${stream.callId}: ${err.message}`);
+  }
+
   // Begin recording so this show can be replayed once it ends.
-  stream.recordingStatus = (await startCallRecording(stream.callType, stream.callId))
-    ? RECORDING_STATUS.PROCESSING
-    : RECORDING_STATUS.NONE;
+  await startCallRecording(stream.callType, stream.callId);
+  stream.recordingStatus = RECORDING_STATUS.PROCESSING;
   await stream.save();
 
   // Notify the seller's followers that the show is live.
@@ -146,12 +164,8 @@ const endStream = async (sellerId, streamId) => {
 
   if (stream.status === STREAM_STATUS.ENDED) throw new AppError('Stream already ended', HTTP_STATUS.CONFLICT);
 
-  // Stop recording first so GetStream finalizes the file, then end the call.
-  // The finished recording arrives asynchronously via the `call.recording_ready`
-  // webhook, which copies it into S3 and flips recordingStatus → ready.
-  if (stream.recordingStatus === RECORDING_STATUS.PROCESSING) {
-    await stopCallRecording(stream.callType, stream.callId);
-  }
+  // Stop recording so GetStream finalizes the file, then end the call.
+  await stopCallRecording(stream.callType, stream.callId);
 
   const client = getStreamClient();
   try {
@@ -161,13 +175,14 @@ const endStream = async (sellerId, streamId) => {
   }
 
   stream.status = STREAM_STATUS.ENDED;
+  stream.recordingStatus = RECORDING_STATUS.PROCESSING;
   stream.endedAt = new Date();
   await stream.save();
-
   return stream;
 };
 
 // ── Join (get viewer token) ───────────────────────────────────────────────────
+
 
 const joinStream = async (streamId, user) => {
   const stream = await Stream.findOne({ _id: streamId, deletedAt: null })
