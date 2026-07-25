@@ -10,6 +10,9 @@ const logger = require('./utils/logger');
 
 const app = express();
 
+// Trust proxy for rate limiting behind reverse proxies (Nginx/ALB)
+app.set('trust proxy', 1);
+
 // ─── Security ─────────────────────────────────────────────────────────────────
 
 app.use(helmet());
