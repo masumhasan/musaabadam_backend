@@ -281,7 +281,12 @@ const getSellerStreams = async (sellerId, { status, page = 1, limit = 20 }) => {
 
   const skip = (Number(page) - 1) * Number(limit);
   const [streams, total] = await Promise.all([
-    Stream.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+    Stream.find(query)
+      .select(PUBLIC_SELECT)
+      .populate('sellerId', 'username displayName avatarUrl isSellerApproved')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit)),
     Stream.countDocuments(query),
   ]);
 
