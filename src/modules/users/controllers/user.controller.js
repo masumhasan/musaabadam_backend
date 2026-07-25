@@ -28,6 +28,19 @@ const updateMyProfile = async (req, res, next) => {
   }
 };
 
+const checkUsernameAvailability = async (req, res, next) => {
+  try {
+    const { username } = req.query;
+    if (!username) {
+      return res.status(400).json({ status: 'error', message: 'Username query parameter is required' });
+    }
+    const available = await userService.checkUsernameAvailability(req.user._id, username);
+    return success(res, { available });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getPublicProfile = async (req, res, next) => {
   try {
     const profile = await userService.getPublicProfile(req.params.userId, req.user._id);
@@ -109,4 +122,4 @@ const updateKyc = async (req, res, next) => {
   }
 };
 
-module.exports = { getMyProfile, getReferralInfo, updateMyProfile, getPublicProfile, getAddresses, addAddress, updateAddress, deleteAddress, updateNotificationPreferences, updateAppPreferences, applyAsSeller, updateKyc };
+module.exports = { getMyProfile, getReferralInfo, updateMyProfile, checkUsernameAvailability, getPublicProfile, getAddresses, addAddress, updateAddress, deleteAddress, updateNotificationPreferences, updateAppPreferences, applyAsSeller, updateKyc };

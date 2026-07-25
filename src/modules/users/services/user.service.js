@@ -12,10 +12,28 @@ const getProfile = async (userId) => {
 };
 
 const updateProfile = async (userId, updates) => {
-  const allowed = ['displayName', 'bio', 'location', 'avatarUrl', 'coverImageUrl', 'socialLinks', 'mutedWords', 'isPrivate'];
+  const allowed = ['username', 'displayName', 'bio', 'location', 'avatarUrl', 'coverImageUrl', 'socialLinks', 'mutedWords', 'isPrivate'];
   const filtered = {};
   for (const key of allowed) {
     if (updates[key] !== undefined) filtered[key] = updates[key];
+  }
+
+  if (filtered.username) {
+    const usernameRegex = /^[a-zA-Z0-9_.-]+$/;
+    if (!usernameRegex.test(filtered.username)) {
+      throw new AppError('Username may only contain letters, numbers, underscores, hyphens, and dots', HTTP_STATUS.BAD_REQUEST);
+    }
+    if (filtered.username.length < 3 || filtered.username.length > 30) {
+      throw new AppError('Username must be between 3 and 30 characters long', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    const existing = await User.findOne({
+      username: { $regex: new RegExp(`^${filtered.username}$`, 'i') },
+      _id: { $ne: userId }
+    });
+    if (existing) {
+      throw new AppError('Username is already taken', HTTP_STATUS.CONFLICT);
+    }
   }
 
   const user = await User.findByIdAndUpdate(
@@ -26,6 +44,18 @@ const updateProfile = async (userId, updates) => {
 
   if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
   return user.toPrivateProfile();
+};
+
+const checkUsernameAvailability = async (userId, username) => {
+  const usernameRegex = /^[a-zA-Z0-9_.-]+$/;
+  if (!usernameRegex.test(username) || username.length < 3 || username.length > 30) {
+    return false;
+  }
+  const existing = await User.findOne({
+    username: { $regex: new RegExp(`^${username}$`, 'i') },
+    _id: { $ne: userId }
+  });
+  return !existing;
 };
 
 const getAddresses = async (userId) => {
@@ -203,6 +233,7 @@ const getReferralInfo = async (userId) => {
 module.exports = {
   getProfile,
   updateProfile,
+  checkUsernameAvailability,
   getAddresses,
   addAddress,
   updateAddress,

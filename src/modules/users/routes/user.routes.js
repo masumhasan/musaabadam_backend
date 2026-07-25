@@ -35,10 +35,14 @@ router.patch('/kyc', [
 
 router.get('/profile', userController.getMyProfile);
 
+// Check username availability
+router.get('/check-username', userController.checkUsernameAvailability);
+
 // Referral code + invite stats (must precede the /:userId catch-all below)
 router.get('/referral', userController.getReferralInfo);
 
 router.put('/profile', [
+  body('username').optional().trim().matches(/^[a-zA-Z0-9_.-]+$/).withMessage('Username may only contain letters, numbers, underscores, hyphens, and dots').isLength({ min: 3, max: 30 }).withMessage('Username must be between 3 and 30 characters'),
   body('displayName').optional().trim().isLength({ max: 60 }).withMessage('Display name too long'),
   body('bio').optional().trim().isLength({ max: 300 }).withMessage('Bio too long'),
   body('location').optional().trim().isLength({ max: 100 }),
