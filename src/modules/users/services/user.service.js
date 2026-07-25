@@ -39,7 +39,7 @@ const updateProfile = async (userId, updates) => {
   const user = await User.findByIdAndUpdate(
     userId,
     { $set: filtered },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   ).select('-passwordHash');
 
   if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
@@ -131,7 +131,7 @@ const updateNotificationPreferences = async (userId, preferences) => {
   const user = await User.findByIdAndUpdate(
     userId,
     { $set: { notificationPreferences: preferences } },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   ).select('notificationPreferences');
   if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
   return user.notificationPreferences;
@@ -141,7 +141,7 @@ const updateAppPreferences = async (userId, preferences) => {
   const user = await User.findByIdAndUpdate(
     userId,
     { $set: { appPreferences: preferences } },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   ).select('appPreferences');
   if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
   return user.appPreferences;

@@ -56,7 +56,7 @@ const unblock = async (blockerId, targetId) => {
   const blocker = await User.findByIdAndUpdate(
     blockerId,
     { $pull: { blockedUsers: targetId } },
-    { new: true }
+    { returnDocument: 'after' }
   ).select('_id');
 
   if (!blocker) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);

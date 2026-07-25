@@ -10,7 +10,7 @@ const updateContent = async (type, content, adminId) => {
   const doc = await LegalContent.findOneAndUpdate(
     { type },
     { content, updatedBy: adminId },
-    { new: true, upsert: true }
+    { returnDocument: 'after', upsert: true }
   );
   return doc;
 };
@@ -26,7 +26,7 @@ const createFaq = async (data, adminId) => {
 };
 
 const updateFaq = async (id, data, adminId) => {
-  return Faq.findByIdAndUpdate(id, { ...data, updatedBy: adminId }, { new: true });
+  return Faq.findByIdAndUpdate(id, { ...data, updatedBy: adminId }, { returnDocument: 'after' });
 };
 
 const deleteFaq = async (id) => {
