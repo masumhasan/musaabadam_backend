@@ -61,8 +61,8 @@ const deleteProduct = async (sellerId, productId) => {
 const publishProduct = async (sellerId, productId) => {
   const product = await Product.findByIdAndSeller(productId, sellerId);
   if (!product) throw new AppError('Product not found', HTTP_STATUS.NOT_FOUND);
-  if (product.status !== PRODUCT_STATUS.DRAFT) {
-    throw new AppError('Only draft products can be published', HTTP_STATUS.BAD_REQUEST);
+  if (product.status !== PRODUCT_STATUS.DRAFT && product.status !== PRODUCT_STATUS.INACTIVE) {
+    throw new AppError('Only draft or inactive products can be activated', HTTP_STATUS.BAD_REQUEST);
   }
   product.status = PRODUCT_STATUS.ACTIVE;
   await product.save();
