@@ -36,7 +36,7 @@ const updateProduct = async (sellerId, productId, updates) => {
   const product = await Product.findByIdAndSeller(productId, sellerId);
   if (!product) throw new AppError('Product not found', HTTP_STATUS.NOT_FOUND);
 
-  if (product.status === PRODUCT_STATUS.ACTIVE && updates.listingType) {
+  if (product.status === PRODUCT_STATUS.ACTIVE && updates.listingType && updates.listingType !== product.listingType) {
     throw new AppError('Cannot change listing type of an active product', HTTP_STATUS.BAD_REQUEST);
   }
 
