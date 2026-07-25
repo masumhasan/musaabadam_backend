@@ -34,7 +34,11 @@ const listFavorites = async (userId, { page = 1, limit = 20 } = {}) => {
       .limit(Number(limit))
       .populate({
         path: 'productId',
-        select: 'title price images listingType status currentHighBid startingPrice flashSale flashSalePrice sellerId',
+        select: 'title price images listingType status currentHighBid startingPrice flashSale flashSalePrice sellerId condition quantity',
+        populate: {
+          path: 'sellerId',
+          select: 'username displayName avatarUrl',
+        },
       }),
     Favorite.countDocuments({ userId }),
   ]);
