@@ -3,6 +3,7 @@ const User = require('../../../models/User');
 const Stream = require('../../../models/Stream');
 const Order = require('../../../models/Order');
 const Product = require('../../../models/Product');
+const Tip = require('../../../models/Tip');
 
 const toObjectId = (id) => new mongoose.Types.ObjectId(String(id));
 
@@ -63,7 +64,7 @@ const getAdminRevenueTrend = async ({ days = 30 } = {}) => {
 const getSellerOverview = async (sellerId) => {
   const sellerOid = toObjectId(sellerId);
 
-  const [totalOrders, pendingOrders, revenueResult, totalProducts, activeProducts, streamStats] = await Promise.all([
+  const [totalOrders, pendingOrders, revenueResult, totalProducts, activeProducts, streamStats, tipsResult] = await Promise.all([
     Order.countDocuments({ sellerId: sellerOid }),
     Order.countDocuments({ sellerId: sellerOid, status: 'pending' }),
     Order.aggregate([
@@ -83,6 +84,16 @@ const getSellerOverview = async (sellerId) => {
         },
       },
     ]),
+    Tip.aggregate([
+      { $match: { sellerId: sellerOid, status: 'succeeded' } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$amount' },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
   ]);
 
   return {
@@ -92,6 +103,8 @@ const getSellerOverview = async (sellerId) => {
     totalProducts,
     activeProducts,
     streams: streamStats[0] ?? { totalStreams: 0, totalViewers: 0, peakViewers: 0 },
+    tipsAmount: tipsResult[0]?.total ?? 0,
+    tipsCount: tipsResult[0]?.count ?? 0,
   };
 };
 
@@ -100,17 +113,57 @@ const getSellerRevenueTrend = async (sellerId, { days = 30 } = {}) => {
   const since = new Date();
   since.setDate(since.getDate() - Number(days));
 
-  return Order.aggregate([
-    { $match: { sellerId: sellerOid, createdAt: { $gte: since }, isPaid: true } },
-    {
-      $group: {
-        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-        revenue: { $sum: '$totalAmount' },
-        orders: { $sum: 1 },
+  const [ordersTrend, tipsTrend] = await Promise.all([
+    Order.aggregate([
+      { $match: { sellerId: sellerOid, createdAt: { $gte: since }, isPaid: true } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          revenue: { $sum: '$totalAmount' },
+          orders: { $sum: 1 },
+        },
       },
-    },
-    { $sort: { _id: 1 } },
+    ]),
+    Tip.aggregate([
+      { $match: { sellerId: sellerOid, createdAt: { $gte: since }, status: 'succeeded' } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          tipsAmount: { $sum: '$amount' },
+          tipsCount: { $sum: 1 },
+        },
+      },
+    ]),
   ]);
+
+  const trendMap = {};
+
+  ordersTrend.forEach(item => {
+    trendMap[item._id] = {
+      _id: item._id,
+      revenue: item.revenue,
+      orders: item.orders,
+      tipsAmount: 0,
+      tipsCount: 0,
+    };
+  });
+
+  tipsTrend.forEach(item => {
+    if (!trendMap[item._id]) {
+      trendMap[item._id] = {
+        _id: item._id,
+        revenue: 0,
+        orders: 0,
+        tipsAmount: item.tipsAmount,
+        tipsCount: item.tipsCount,
+      };
+    } else {
+      trendMap[item._id].tipsAmount = item.tipsAmount;
+      trendMap[item._id].tipsCount = item.tipsCount;
+    }
+  });
+
+  return Object.values(trendMap).sort((a, b) => a._id.localeCompare(b._id));
 };
 
 module.exports = { getAdminOverview, getAdminRevenueTrend, getSellerOverview, getSellerRevenueTrend };
