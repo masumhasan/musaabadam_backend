@@ -93,7 +93,14 @@ router.get('/payouts', canApprovePayouts, monitoringCtrl.listPayouts);
 router.get('/streams', canTerminateStreams, monitoringCtrl.listStreams);
 router.get('/offers', canViewAnalytics, monitoringCtrl.listOffers);
 router.get('/tips', canViewAnalytics, monitoringCtrl.listTips);
-router.patch('/streams/:streamId/terminate', canTerminateStreams, monitoringCtrl.terminateStream);
+const { param: paramValidator } = require('express-validator');
+const streamIdParam = [
+  paramValidator('streamId').isMongoId().withMessage('Invalid stream ID'),
+];
+
+router.patch('/streams/:streamId/terminate', canTerminateStreams, ...streamIdParam, validate, monitoringCtrl.terminateStream);
+router.patch('/streams/:streamId', canTerminateStreams, ...streamIdParam, validate, monitoringCtrl.updateStream);
+router.delete('/streams/:streamId', canTerminateStreams, ...streamIdParam, validate, monitoringCtrl.deleteStream);
 
 // ── Settings — legal content & premier shop (any authenticated admin) ─────────
 router.put('/settings/privacy-policy', updateLegalContentValidator, validate, settingsCtrl.updatePrivacyPolicy);

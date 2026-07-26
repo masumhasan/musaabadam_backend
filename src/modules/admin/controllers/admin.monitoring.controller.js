@@ -3,6 +3,8 @@ const Payout = require('../../../models/Payout');
 const Stream = require('../../../models/Stream');
 const Offer = require('../../../models/Offer');
 const { success } = require('../../../utils/apiResponse');
+const { AppError } = require('../../../middleware/errorHandler');
+const { HTTP_STATUS } = require('../../../config/constants');
 
 const paginate = (query) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
@@ -124,4 +126,46 @@ const listTips = async (req, res, next) => {
   }
 };
 
-module.exports = { listOrders, listPayouts, listStreams, terminateStream, listOffers, listTips };
+// PATCH /admin/streams/:streamId — admin edit any livestream.
+const updateStream = async (req, res, next) => {
+  try {
+    const stream = await Stream.findOne({ _id: req.params.streamId, deletedAt: null });
+    if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
+
+    const { title, description, status } = req.body;
+    
+    if (title !== undefined) stream.title = title;
+    if (description !== undefined) stream.description = description;
+    if (status !== undefined) stream.status = status;
+
+    await stream.save();
+    return success(res, { stream }, 'Stream updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// DELETE /admin/streams/:streamId — admin delete any livestream.
+const deleteStream = async (req, res, next) => {
+  try {
+    const stream = await Stream.findOne({ _id: req.params.streamId, deletedAt: null });
+    if (!stream) throw new AppError('Stream not found', HTTP_STATUS.NOT_FOUND);
+
+    stream.deletedAt = new Date();
+    await stream.save();
+    return success(res, { id: String(stream._id) }, 'Stream deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  listOrders,
+  listPayouts,
+  listStreams,
+  terminateStream,
+  listOffers,
+  listTips,
+  updateStream,
+  deleteStream,
+};
