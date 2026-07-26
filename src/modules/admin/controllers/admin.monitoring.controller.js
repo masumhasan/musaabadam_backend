@@ -39,11 +39,21 @@ const listPayouts = async (req, res, next) => {
     const { page, limit, skip } = paginate(req.query);
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
-    const [payouts, total] = await Promise.all([
+    const [payouts, total, paidResult, pendingResult] = await Promise.all([
       Payout.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('sellerId', 'username displayName'),
       Payout.countDocuments(filter),
+      Payout.aggregate([
+        { $match: { status: 'paid' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Payout.aggregate([
+        { $match: { status: { $in: ['pending', 'processing'] } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ])
     ]);
-    return success(res, { payouts, total, page, limit, totalPages: Math.ceil(total / limit) }, 'Payouts');
+    const totalPaid = paidResult[0]?.total ?? 0;
+    const totalPending = pendingResult[0]?.total ?? 0;
+    return success(res, { payouts, total, totalPaid, totalPending, page, limit, totalPages: Math.ceil(total / limit) }, 'Payouts');
   } catch (err) {
     next(err);
   }
@@ -111,7 +121,7 @@ const listTips = async (req, res, next) => {
     const Tip = require('../../../models/Tip');
     const { page, limit, skip } = paginate(req.query);
     const filter = {};
-    const [tips, total] = await Promise.all([
+    const [tips, total, totalAmountResult] = await Promise.all([
       Tip.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -119,8 +129,13 @@ const listTips = async (req, res, next) => {
         .populate('buyerId', 'username displayName email')
         .populate('sellerId', 'username displayName email'),
       Tip.countDocuments(filter),
+      Tip.aggregate([
+        { $match: { status: 'succeeded' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ])
     ]);
-    return success(res, { tips, total, page, limit, totalPages: Math.ceil(total / limit) }, 'Tips');
+    const totalAmount = totalAmountResult[0]?.total ?? 0;
+    return success(res, { tips, total, totalAmount, page, limit, totalPages: Math.ceil(total / limit) }, 'Tips');
   } catch (err) {
     next(err);
   }

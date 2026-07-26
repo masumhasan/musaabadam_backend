@@ -389,7 +389,23 @@ const refundOrderPayment = async (orderId, { amount, reason, requesterId } = {})
 
 const getWallet = async (userId) => {
   const wallet = await getOrCreateWallet(userId);
-  return wallet;
+  const Tip = require('../../../models/Tip');
+  const mongoose = require('mongoose');
+  const userOid = new mongoose.Types.ObjectId(String(userId));
+
+  const tipsResult = await Tip.aggregate([
+    { $match: { sellerId: userOid, status: 'succeeded' } },
+    { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+  ]);
+
+  const tipsAmount = tipsResult[0]?.total ?? 0;
+  const tipsCount = tipsResult[0]?.count ?? 0;
+
+  return {
+    ...wallet.toObject(),
+    tipsAmount,
+    tipsCount,
+  };
 };
 
 const getLedger = async (userId, { page = 1, limit = 20 } = {}) => {
@@ -466,6 +482,27 @@ const startPayoutOnboarding = async (sellerId) => {
   if (!user) throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
 
   let accountId = user.sellerProfile?.stripeAccountId;
+  if (accountId) {
+    try {
+      const link = await provider.createAccountLink({ accountId });
+      return { accountId, onboardingUrl: link.url, provider: provider.name };
+    } catch (err) {
+      if (
+        err.message?.includes('No such account') ||
+        err.raw?.code === 'resource_missing' ||
+        err.statusCode === 400
+      ) {
+        accountId = null;
+        if (user.sellerProfile) {
+          user.sellerProfile.stripeAccountId = undefined;
+          await user.save();
+        }
+      } else {
+        throw err;
+      }
+    }
+  }
+
   if (!accountId) {
     const account = await provider.createConnectAccount({ email: user.email });
     accountId = account.id;
@@ -487,7 +524,14 @@ const getPayoutAccount = async (sellerId) => {
   let status = { chargesEnabled: false, payoutsEnabled: false, detailsSubmitted: false };
   try {
     status = await provider.getAccountStatus({ accountId });
-  } catch {
+  } catch (err) {
+    if (err.message?.includes('No such account') || err.raw?.code === 'resource_missing') {
+      if (user.sellerProfile) {
+        user.sellerProfile.stripeAccountId = undefined;
+        await user.save();
+      }
+      return { connected: false, payoutsEnabled: false, accountId: null };
+    }
     // Provider unavailable — report as pending.
   }
   return { connected: true, accountId, ...status };
