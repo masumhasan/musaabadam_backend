@@ -32,6 +32,13 @@ const ShippingProfileSchema = new mongoose.Schema(
     flatRate: { type: Number, default: 0, min: 0 },
     freeShippingThreshold: { type: Number, min: 0 }, // order subtotal above which shipping is free
 
+    weight: { type: Number, min: 0 },
+    weightScale: { type: String, enum: ['Kg', 'Lb'], default: 'Kg' },
+    length: { type: Number, min: 0 },
+    width: { type: Number, min: 0 },
+    height: { type: Number, min: 0 },
+    dimensionScale: { type: String, enum: ['Cm', 'Inch'], default: 'Inch' },
+
     rateTiers: { type: [RateTierSchema], default: [] },
 
     handlingDays: { type: Number, default: 1, min: 0 }, // days to dispatch
