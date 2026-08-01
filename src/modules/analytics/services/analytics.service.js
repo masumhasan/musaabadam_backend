@@ -166,4 +166,36 @@ const getSellerRevenueTrend = async (sellerId, { days = 30 } = {}) => {
   return Object.values(trendMap).sort((a, b) => a._id.localeCompare(b._id));
 };
 
-module.exports = { getAdminOverview, getAdminRevenueTrend, getSellerOverview, getSellerRevenueTrend };
+const getUsersTrend = async ({ days = 30 } = {}) => {
+  const since = new Date();
+  since.setDate(since.getDate() - Number(days));
+
+  return User.aggregate([
+    { $match: { createdAt: { $gte: since }, deletedAt: null } },
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        newUsers: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+};
+
+const getStreamsTrend = async ({ days = 30 } = {}) => {
+  const since = new Date();
+  since.setDate(since.getDate() - Number(days));
+
+  return Stream.aggregate([
+    { $match: { createdAt: { $gte: since }, deletedAt: null } },
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        newStreams: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+};
+
+module.exports = { getAdminOverview, getAdminRevenueTrend, getSellerOverview, getSellerRevenueTrend, getUsersTrend, getStreamsTrend };

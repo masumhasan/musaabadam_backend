@@ -36,4 +36,22 @@ const sellerRevenueTrend = async (req, res, next) => {
   }
 };
 
-module.exports = { adminOverview, adminRevenueTrend, sellerOverview, sellerRevenueTrend };
+const adminUsersTrend = async (req, res, next) => {
+  try {
+    const data = await svc.getUsersTrend(req.query);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const adminStreamsTrend = async (req, res, next) => {
+  try {
+    const data = await svc.getStreamsTrend(req.query);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { adminOverview, adminRevenueTrend, sellerOverview, sellerRevenueTrend, adminUsersTrend, adminStreamsTrend };
