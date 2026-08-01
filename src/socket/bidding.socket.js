@@ -52,7 +52,8 @@ const registerBiddingSocket = (io) => {
         socket.join(`stream:${streamId}`);
         socket.emit('joined', { streamId, viewerCount: presence.uniqueCount(streamId) + 1 });
         await presence.addViewer(io, streamId, socket.id, socket.user._id);
-      } catch {
+      } catch (err) {
+        logger.error(`Error in join-stream socket event: ${err.message}`, { error: err });
         socket.emit('error', { message: 'Failed to join stream' });
       }
     });
@@ -79,6 +80,7 @@ const registerBiddingSocket = (io) => {
 
         io.to(`stream:${streamId}`).emit('bid-updated', update);
       } catch (err) {
+        logger.error(`Error in place-bid socket event: ${err.message}`, { error: err });
         socket.emit('bid-error', { message: err.isOperational ? err.message : 'Failed to place bid' });
       }
     });

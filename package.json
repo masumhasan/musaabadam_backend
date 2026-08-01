@@ -41,6 +41,7 @@
     "node-cron": "^4.6.0",
     "nodemailer": "^8.0.10",
     "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "stream-chat": "^9.45.4",
     "stripe": "^14.25.0",
     "uuid": "^14.0.0"
