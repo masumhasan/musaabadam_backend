@@ -88,4 +88,15 @@ const requireAdminPermission = (permission) => (req, res, next) => {
   next();
 };
 
-module.exports = { authenticateUser, requireRole, requirePermission, authenticateAdmin, requireAdminPermission };
+// Restricts to users with an approved seller profile
+const requireApprovedSeller = (req, res, next) => {
+  if (!req.user) {
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, message: 'Unauthorized' });
+  }
+  if (!req.user.isSellerApproved) {
+    return res.status(HTTP_STATUS.FORBIDDEN).json({ success: false, message: 'Seller account is not approved' });
+  }
+  next();
+};
+
+module.exports = { authenticateUser, requireRole, requirePermission, authenticateAdmin, requireAdminPermission, requireApprovedSeller };

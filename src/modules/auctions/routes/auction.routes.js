@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { authenticateUser, requireRole } = require('../../../middleware/auth');
+const { authenticateUser, requireRole, requireApprovedSeller } = require('../../../middleware/auth');
 const validate = require('../../../middleware/validate');
 const { ROLES } = require('../../../config/constants');
 const ctrl = require('../controllers/auction.controller');
@@ -15,11 +15,11 @@ const isSeller = requireRole(ROLES.SELLER);
 
 // Seller controls
 router.get('/my', authenticateUser, ctrl.myBids);
-router.post('/start', authenticateUser, isSeller, ...startAuctionValidator, validate, ctrl.startAuction);
-router.post('/:productId/pause', authenticateUser, isSeller, ...productIdParam, validate, ctrl.pauseAuction);
-router.post('/:productId/resume', authenticateUser, isSeller, ...productIdParam, validate, ctrl.resumeAuction);
-router.post('/:productId/cancel', authenticateUser, isSeller, ...productIdParam, validate, ctrl.cancelAuction);
-router.post('/:productId/close', authenticateUser, isSeller, ...productIdParam, validate, ctrl.closeAuction);
+router.post('/start', authenticateUser, isSeller, requireApprovedSeller, ...startAuctionValidator, validate, ctrl.startAuction);
+router.post('/:productId/pause', authenticateUser, isSeller, requireApprovedSeller, ...productIdParam, validate, ctrl.pauseAuction);
+router.post('/:productId/resume', authenticateUser, isSeller, requireApprovedSeller, ...productIdParam, validate, ctrl.resumeAuction);
+router.post('/:productId/cancel', authenticateUser, isSeller, requireApprovedSeller, ...productIdParam, validate, ctrl.cancelAuction);
+router.post('/:productId/close', authenticateUser, isSeller, requireApprovedSeller, ...productIdParam, validate, ctrl.closeAuction);
 
 // Bidding (REST fallback — primary path is the socket)
 router.post('/:productId/bids', authenticateUser, ...placeBidValidator, validate, ctrl.placeBid);

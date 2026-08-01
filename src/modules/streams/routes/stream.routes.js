@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { authenticateUser, requireRole } = require('../../../middleware/auth');
+const { authenticateUser, requireRole, requireApprovedSeller } = require('../../../middleware/auth');
 const validate = require('../../../middleware/validate');
 const { ROLES } = require('../../../config/constants');
 const ctrl = require('../controllers/stream.controller');
@@ -17,7 +17,7 @@ const router = Router();
 const isSeller = requireRole(ROLES.SELLER);
 
 // Seller-only: list own streams — declared before /:streamId to avoid param capture
-router.get('/me/streams', authenticateUser, isSeller, ...sellerStreamsValidator, validate, ctrl.myStreams);
+router.get('/me/streams', authenticateUser, isSeller, requireApprovedSeller, ...sellerStreamsValidator, validate, ctrl.myStreams);
 
 // Any authenticated user: browse past shows (replays) — before /:streamId
 router.get('/replays', authenticateUser, ...listReplaysValidator, validate, ctrl.listReplays);
@@ -26,26 +26,26 @@ router.get('/replays', authenticateUser, ...listReplaysValidator, validate, ctrl
 router.get('/feed', authenticateUser, ctrl.feed);
 
 // Seller-only: create a stream
-router.post('/', authenticateUser, isSeller, ...createStreamValidator, validate, ctrl.create);
+router.post('/', authenticateUser, isSeller, requireApprovedSeller, ...createStreamValidator, validate, ctrl.create);
 
 // Seller-only: start an auction stream immediately (pinned product)
-router.post('/auction', authenticateUser, isSeller, ...createAuctionValidator, validate, ctrl.createAuction);
+router.post('/auction', authenticateUser, isSeller, requireApprovedSeller, ...createAuctionValidator, validate, ctrl.createAuction);
 
 // Seller-only: edit a scheduled show
-router.patch('/:streamId', authenticateUser, isSeller, ...updateStreamValidator, validate, ctrl.update);
+router.patch('/:streamId', authenticateUser, isSeller, requireApprovedSeller, ...updateStreamValidator, validate, ctrl.update);
 
 // Seller-only: lifecycle mutations
-router.patch('/:streamId/start', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.start);
-router.patch('/:streamId/end', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.end);
-router.patch('/:streamId/cancel', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.cancel);
+router.patch('/:streamId/start', authenticateUser, isSeller, requireApprovedSeller, ...streamIdParam, validate, ctrl.start);
+router.patch('/:streamId/end', authenticateUser, isSeller, requireApprovedSeller, ...streamIdParam, validate, ctrl.end);
+router.patch('/:streamId/cancel', authenticateUser, isSeller, requireApprovedSeller, ...streamIdParam, validate, ctrl.cancel);
 
 // Seller-only: publish a draft, delete a show
-router.patch('/:streamId/publish', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.publish);
-router.delete('/:streamId', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.remove);
+router.patch('/:streamId/publish', authenticateUser, isSeller, requireApprovedSeller, ...streamIdParam, validate, ctrl.publish);
+router.delete('/:streamId', authenticateUser, isSeller, requireApprovedSeller, ...streamIdParam, validate, ctrl.remove);
 
 // Seller-only: pin/unpin the current product to the live show
-router.post('/:streamId/pin', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.pinProduct);
-router.post('/:streamId/unpin', authenticateUser, isSeller, ...streamIdParam, validate, ctrl.unpinProduct);
+router.post('/:streamId/pin', authenticateUser, isSeller, requireApprovedSeller, ...streamIdParam, validate, ctrl.pinProduct);
+router.post('/:streamId/unpin', authenticateUser, isSeller, requireApprovedSeller, ...streamIdParam, validate, ctrl.unpinProduct);
 
 // Any authenticated user: browse and join streams
 router.get('/', authenticateUser, ...listStreamsValidator, validate, ctrl.list);
