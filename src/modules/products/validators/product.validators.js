@@ -30,9 +30,9 @@ const createProductValidator = [
     .withMessage('Starting price is required for auctions'),
   body('auctionEndsAt')
     .if(body('listingType').equals(LISTING_TYPES.AUCTION))
-    .isISO8601().withMessage('Auction end time must be a valid ISO date')
+    .isISO8601().withMessage('Auction start time must be a valid ISO date')
     .custom((value) => {
-      if (new Date(value) <= new Date()) throw new Error('Auction end time must be in the future');
+      if (new Date(value) <= new Date()) throw new Error('Auction start time must be in the future');
       return true;
     }),
   body('reservePrice').optional().isFloat({ min: 0 }),

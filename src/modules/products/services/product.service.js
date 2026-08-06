@@ -8,11 +8,14 @@ const PUBLIC_SELECT = '-costPerItem -sku -reservePrice -highestBidderId';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const assertListingRequirements = (data) => {
+  if (data.listingType !== LISTING_TYPES.BUY_IT_NOW) {
+    data.acceptOffers = false;
+  }
   if (data.listingType === LISTING_TYPES.AUCTION) {
     if (!data.startingPrice) throw new AppError('Starting price required for auction', HTTP_STATUS.BAD_REQUEST);
-    if (!data.auctionEndsAt) throw new AppError('Auction end time required', HTTP_STATUS.BAD_REQUEST);
+    if (!data.auctionEndsAt) throw new AppError('Auction start time required', HTTP_STATUS.BAD_REQUEST);
     if (new Date(data.auctionEndsAt) <= new Date()) {
-      throw new AppError('Auction end time must be in the future', HTTP_STATUS.BAD_REQUEST);
+      throw new AppError('Auction start time must be in the future', HTTP_STATUS.BAD_REQUEST);
     }
   }
   if (data.listingType === LISTING_TYPES.BUY_IT_NOW && (!data.price || data.price <= 0)) {
@@ -163,6 +166,9 @@ const placeBid = async (bidderId, productId, bidAmount) => {
   if (!product) throw new AppError('Product not found', HTTP_STATUS.NOT_FOUND);
   if (product.listingType !== LISTING_TYPES.AUCTION) throw new AppError('Product is not an auction', HTTP_STATUS.BAD_REQUEST);
   if (product.status !== PRODUCT_STATUS.ACTIVE) throw new AppError('Auction is not active', HTTP_STATUS.BAD_REQUEST);
+  if (product.auctionState !== 'running') {
+    throw new AppError('Auction is not active', HTTP_STATUS.BAD_REQUEST);
+  }
   if (product.auctionEndsAt && product.auctionEndsAt < new Date()) {
     throw new AppError('Auction has ended', HTTP_STATUS.CONFLICT);
   }

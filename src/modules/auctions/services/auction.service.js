@@ -184,6 +184,9 @@ const placeBid = async (bidderId, { productId, streamId, amount, maxAmount, isAu
   if (product.auctionState === 'paused') {
     throw new AppError('Auction is paused', HTTP_STATUS.CONFLICT);
   }
+  if (product.auctionState !== 'running') {
+    throw new AppError('Auction is not active', HTTP_STATUS.CONFLICT);
+  }
   if (!product.auctionEndsAt || new Date() > new Date(product.auctionEndsAt)) {
     throw new AppError('Auction has ended', HTTP_STATUS.GONE);
   }

@@ -53,6 +53,7 @@ const sweepExpiredAuctions = async () => {
       deletedAt: null,
       listingType: LISTING_TYPES.AUCTION,
       status: PRODUCT_STATUS.ACTIVE,
+      auctionState: 'running',
       auctionEndsAt: { $ne: null, $lte: new Date() },
     }).select('_id');
 
