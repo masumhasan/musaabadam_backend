@@ -2,7 +2,7 @@ const svc = require('../services/analytics.service');
 
 const adminOverview = async (req, res, next) => {
   try {
-    const data = await svc.getAdminOverview();
+    const data = await svc.getAdminOverview(req.query);
     res.json({ success: true, data });
   } catch (err) {
     next(err);

@@ -12,12 +12,32 @@ const paginate = (query) => {
   return { page, limit, skip: (page - 1) * limit };
 };
 
+const getTimeframeFilter = (timeframe) => {
+  if (!timeframe || timeframe === 'lifetime') return null;
+  const now = new Date();
+  const start = new Date();
+  if (timeframe === 'daily') {
+    start.setHours(0, 0, 0, 0); // start of today
+  } else if (timeframe === 'weekly') {
+    start.setDate(now.getDate() - 7);
+  } else if (timeframe === 'monthly') {
+    start.setMonth(now.getMonth() - 1);
+  } else if (timeframe === 'yearly') {
+    start.setFullYear(now.getFullYear() - 1);
+  } else {
+    return null;
+  }
+  return { $gte: start };
+};
+
 // GET /admin/orders — platform-wide order monitoring.
 const listOrders = async (req, res, next) => {
   try {
     const { page, limit, skip } = paginate(req.query);
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
+    const tfFilter = getTimeframeFilter(req.query.timeframe);
+    if (tfFilter) filter.createdAt = tfFilter;
     const [orders, total] = await Promise.all([
       Order.find(filter)
         .sort({ createdAt: -1 })
@@ -39,15 +59,25 @@ const listPayouts = async (req, res, next) => {
     const { page, limit, skip } = paginate(req.query);
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
+    const tfFilter = getTimeframeFilter(req.query.timeframe);
+    if (tfFilter) filter.createdAt = tfFilter;
+
+    const paidMatch = { status: 'paid' };
+    const pendingMatch = { status: { $in: ['pending', 'processing'] } };
+    if (tfFilter) {
+      paidMatch.createdAt = tfFilter;
+      pendingMatch.createdAt = tfFilter;
+    }
+
     const [payouts, total, paidResult, pendingResult] = await Promise.all([
       Payout.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('sellerId', 'username displayName'),
       Payout.countDocuments(filter),
       Payout.aggregate([
-        { $match: { status: 'paid' } },
+        { $match: paidMatch },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       Payout.aggregate([
-        { $match: { status: { $in: ['pending', 'processing'] } } },
+        { $match: pendingMatch },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ])
     ]);
@@ -65,6 +95,8 @@ const listStreams = async (req, res, next) => {
     const { page, limit, skip } = paginate(req.query);
     const filter = { deletedAt: null };
     if (req.query.status) filter.status = req.query.status;
+    const tfFilter = getTimeframeFilter(req.query.timeframe);
+    if (tfFilter) filter.createdAt = tfFilter;
     const [streams, total] = await Promise.all([
       Stream.find(filter)
         .sort({ status: 1, startedAt: -1, createdAt: -1 })
@@ -99,6 +131,8 @@ const listOffers = async (req, res, next) => {
     const { page, limit, skip } = paginate(req.query);
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
+    const tfFilter = getTimeframeFilter(req.query.timeframe);
+    if (tfFilter) filter.createdAt = tfFilter;
     const [offers, total] = await Promise.all([
       Offer.find(filter)
         .sort({ createdAt: -1 })
@@ -121,6 +155,14 @@ const listTips = async (req, res, next) => {
     const Tip = require('../../../models/Tip');
     const { page, limit, skip } = paginate(req.query);
     const filter = {};
+    const tfFilter = getTimeframeFilter(req.query.timeframe);
+    if (tfFilter) filter.createdAt = tfFilter;
+
+    const tipsMatch = { status: 'succeeded' };
+    if (tfFilter) {
+      tipsMatch.createdAt = tfFilter;
+    }
+
     const [tips, total, totalAmountResult] = await Promise.all([
       Tip.find(filter)
         .sort({ createdAt: -1 })
@@ -130,7 +172,7 @@ const listTips = async (req, res, next) => {
         .populate('sellerId', 'username displayName email'),
       Tip.countDocuments(filter),
       Tip.aggregate([
-        { $match: { status: 'succeeded' } },
+        { $match: tipsMatch },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ])
     ]);

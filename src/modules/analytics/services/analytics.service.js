@@ -7,7 +7,42 @@ const Tip = require('../../../models/Tip');
 
 const toObjectId = (id) => new mongoose.Types.ObjectId(String(id));
 
-const getAdminOverview = async () => {
+const getTimeframeFilter = (timeframe) => {
+  if (!timeframe || timeframe === 'lifetime') return null;
+  const now = new Date();
+  const start = new Date();
+  if (timeframe === 'daily') {
+    start.setHours(0, 0, 0, 0); // start of today
+  } else if (timeframe === 'weekly') {
+    start.setDate(now.getDate() - 7);
+  } else if (timeframe === 'monthly') {
+    start.setMonth(now.getMonth() - 1);
+  } else if (timeframe === 'yearly') {
+    start.setFullYear(now.getFullYear() - 1);
+  } else {
+    return null;
+  }
+  return { $gte: start };
+};
+
+const getAdminOverview = async (query = {}) => {
+  const timeframe = query.timeframe;
+  const tfFilter = getTimeframeFilter(timeframe);
+
+  const userMatch = { deletedAt: null };
+  const sellerMatch = { role: 'seller', deletedAt: null };
+  const streamMatch = { deletedAt: null };
+  const orderMatch = {};
+  const revenueMatch = { status: { $in: ['delivered', 'shipped'] }, isPaid: true };
+
+  if (tfFilter) {
+    userMatch.createdAt = tfFilter;
+    sellerMatch.createdAt = tfFilter;
+    streamMatch.createdAt = tfFilter;
+    orderMatch.createdAt = tfFilter;
+    revenueMatch.createdAt = tfFilter;
+  }
+
   const [
     totalUsers,
     totalSellers,
@@ -17,16 +52,16 @@ const getAdminOverview = async () => {
     revenueResult,
     recentOrders,
   ] = await Promise.all([
-    User.countDocuments({ deletedAt: null }),
-    User.countDocuments({ role: 'seller', deletedAt: null }),
-    Stream.countDocuments({ deletedAt: null }),
-    Stream.countDocuments({ status: 'live', deletedAt: null }),
-    Order.countDocuments({}),
+    User.countDocuments(userMatch),
+    User.countDocuments(sellerMatch),
+    Stream.countDocuments(streamMatch),
+    Stream.countDocuments({ status: 'live', deletedAt: null }), // Keep "Live Now" real-time status-based
+    Order.countDocuments(orderMatch),
     Order.aggregate([
-      { $match: { status: { $in: ['delivered', 'shipped'] }, isPaid: true } },
+      { $match: revenueMatch },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } },
     ]),
-    Order.find({})
+    Order.find(orderMatch)
       .sort({ createdAt: -1 })
       .limit(5)
       .populate('buyerId', 'username displayName avatarUrl')
@@ -44,15 +79,35 @@ const getAdminOverview = async () => {
   };
 };
 
-const getAdminRevenueTrend = async ({ days = 30 } = {}) => {
-  const since = new Date();
-  since.setDate(since.getDate() - Number(days));
+const getAdminRevenueTrend = async (query = {}) => {
+  const timeframe = query.timeframe || 'monthly';
+  const tfFilter = getTimeframeFilter(timeframe);
+
+  const match = { isPaid: true };
+  if (tfFilter) {
+    match.createdAt = tfFilter;
+  } else if (query.days) {
+    const since = new Date();
+    since.setDate(since.getDate() - Number(query.days));
+    match.createdAt = { $gte: since };
+  } else {
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+    match.createdAt = { $gte: since };
+  }
+
+  let format = '%Y-%m-%d';
+  if (timeframe === 'daily') {
+    format = '%Y-%m-%dT%H:00:00.000';
+  } else if (timeframe === 'yearly' || timeframe === 'lifetime') {
+    format = '%Y-%m-01';
+  }
 
   return Order.aggregate([
-    { $match: { createdAt: { $gte: since }, isPaid: true } },
+    { $match: match },
     {
       $group: {
-        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        _id: { $dateToString: { format, date: '$createdAt' } },
         revenue: { $sum: '$totalAmount' },
         orders: { $sum: 1 },
       },
@@ -166,15 +221,35 @@ const getSellerRevenueTrend = async (sellerId, { days = 30 } = {}) => {
   return Object.values(trendMap).sort((a, b) => a._id.localeCompare(b._id));
 };
 
-const getUsersTrend = async ({ days = 30 } = {}) => {
-  const since = new Date();
-  since.setDate(since.getDate() - Number(days));
+const getUsersTrend = async (query = {}) => {
+  const timeframe = query.timeframe || 'monthly';
+  const tfFilter = getTimeframeFilter(timeframe);
+
+  const match = { deletedAt: null };
+  if (tfFilter) {
+    match.createdAt = tfFilter;
+  } else if (query.days) {
+    const since = new Date();
+    since.setDate(since.getDate() - Number(query.days));
+    match.createdAt = { $gte: since };
+  } else {
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+    match.createdAt = { $gte: since };
+  }
+
+  let format = '%Y-%m-%d';
+  if (timeframe === 'daily') {
+    format = '%Y-%m-%dT%H:00:00.000';
+  } else if (timeframe === 'yearly' || timeframe === 'lifetime') {
+    format = '%Y-%m-01';
+  }
 
   return User.aggregate([
-    { $match: { createdAt: { $gte: since }, deletedAt: null } },
+    { $match: match },
     {
       $group: {
-        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        _id: { $dateToString: { format, date: '$createdAt' } },
         newUsers: { $sum: 1 },
       },
     },
@@ -182,15 +257,35 @@ const getUsersTrend = async ({ days = 30 } = {}) => {
   ]);
 };
 
-const getStreamsTrend = async ({ days = 30 } = {}) => {
-  const since = new Date();
-  since.setDate(since.getDate() - Number(days));
+const getStreamsTrend = async (query = {}) => {
+  const timeframe = query.timeframe || 'monthly';
+  const tfFilter = getTimeframeFilter(timeframe);
+
+  const match = { deletedAt: null };
+  if (tfFilter) {
+    match.createdAt = tfFilter;
+  } else if (query.days) {
+    const since = new Date();
+    since.setDate(since.getDate() - Number(query.days));
+    match.createdAt = { $gte: since };
+  } else {
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+    match.createdAt = { $gte: since };
+  }
+
+  let format = '%Y-%m-%d';
+  if (timeframe === 'daily') {
+    format = '%Y-%m-%dT%H:00:00.000';
+  } else if (timeframe === 'yearly' || timeframe === 'lifetime') {
+    format = '%Y-%m-01';
+  }
 
   return Stream.aggregate([
-    { $match: { createdAt: { $gte: since }, deletedAt: null } },
+    { $match: match },
     {
       $group: {
-        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        _id: { $dateToString: { format, date: '$createdAt' } },
         newStreams: { $sum: 1 },
       },
     },
