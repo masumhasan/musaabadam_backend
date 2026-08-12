@@ -13,13 +13,22 @@ const createOffer = async (buyerId, { productId, amount }) => {
     throw new AppError('This product does not accept offers', HTTP_STATUS.BAD_REQUEST);
   }
 
+  // Auto-accept check: if maxDiscount is set, offers >= product.price * (1 - maxDiscount/100) are auto-accepted
+  let status = OFFER_STATUS.PENDING;
+  if (product.maxDiscount && product.maxDiscount > 0 && product.price > 0) {
+    const minAcceptablePrice = product.price * (1 - product.maxDiscount / 100);
+    if (amount >= (minAcceptablePrice - 0.001)) {
+      status = OFFER_STATUS.ACCEPTED;
+    }
+  }
+
   // Create offer
   const offer = await Offer.create({
     productId,
     buyerId,
     sellerId: product.sellerId,
     amount,
-    status: OFFER_STATUS.PENDING,
+    status,
   });
 
   return offer;
