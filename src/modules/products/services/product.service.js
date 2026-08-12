@@ -31,6 +31,9 @@ const createProduct = async (sellerId, data) => {
     const profile = await ShippingProfile.findOne({ _id: data.shippingProfileId, sellerId, deletedAt: null });
     if (!profile) throw new AppError('Shipping profile not found or does not belong to you', HTTP_STATUS.BAD_REQUEST);
   }
+  if (Array.isArray(data.variants) && data.variants.length > 0) {
+    data.quantity = data.variants.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0);
+  }
   const status = data.publishNow ? PRODUCT_STATUS.ACTIVE : PRODUCT_STATUS.DRAFT;
   return Product.create({ ...data, sellerId, status });
 };
@@ -46,6 +49,10 @@ const updateProduct = async (sellerId, productId, updates) => {
   if (updates.shippingProfileId) {
     const profile = await ShippingProfile.findOne({ _id: updates.shippingProfileId, sellerId, deletedAt: null });
     if (!profile) throw new AppError('Shipping profile not found or does not belong to you', HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (Array.isArray(updates.variants) && updates.variants.length > 0) {
+    updates.quantity = updates.variants.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0);
   }
 
   Object.assign(product, updates);

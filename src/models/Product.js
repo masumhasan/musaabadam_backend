@@ -3,10 +3,13 @@ const { LISTING_TYPES, PRODUCT_CONDITIONS, PRODUCT_STATUS } = require('../config
 
 const VariantSchema = new mongoose.Schema(
   {
+    name: { type: String, trim: true },
+    image: { type: String, trim: true, default: '' },
     size: { type: String, trim: true },
     color: { type: String, trim: true },
     sku: { type: String, trim: true },
     quantity: { type: Number, default: 1, min: 0 },
+    quantitySold: { type: Number, default: 0, min: 0 },
     priceOverride: { type: Number, min: 0 },
   },
   { _id: true }
