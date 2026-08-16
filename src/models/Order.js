@@ -16,6 +16,8 @@ const ORDER_STATUS = Object.freeze({
 const OrderItemSchema = new mongoose.Schema(
   {
     productId: { type: ObjectId, ref: 'Product', required: true },
+    variantId: { type: ObjectId },
+    variantName: { type: String },
     title: { type: String, required: true },
     imageUrl: { type: String },
     quantity: { type: Number, required: true, min: 1 },

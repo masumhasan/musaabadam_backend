@@ -6,6 +6,7 @@ const orderIdParam = [param('orderId').isMongoId().withMessage('Invalid order ID
 const createOrderValidator = [
   body('items').isArray({ min: 1 }).withMessage('items must be a non-empty array'),
   body('items.*.productId').isMongoId().withMessage('Each item must have a valid productId'),
+  body('items.*.variantId').optional({ values: 'falsy' }).isMongoId().withMessage('Invalid variantId'),
   body('items.*.quantity').isInt({ min: 1 }).withMessage('Each item quantity must be at least 1'),
   body('shippingAddressSnapshot').optional({ values: 'falsy' }).isObject(),
   body('shippingAddressSnapshot.fullName').optional({ values: 'falsy' }).isString().trim(),
