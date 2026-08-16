@@ -16,7 +16,7 @@ const AddressSchema = new mongoose.Schema(
     city: { type: String, required: true, trim: true },
     state: { type: String, trim: true },
     postalCode: { type: String, required: true, trim: true },
-    country: { type: String, required: true, trim: true, default: 'US' },
+    country: { type: String, trim: true, default: 'US' },
     phone: { type: String, trim: true },
     isDefault: { type: Boolean, default: false },
   },

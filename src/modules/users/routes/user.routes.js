@@ -20,9 +20,9 @@ router.post('/seller-application', [
   body('businessAddress.line1').trim().notEmpty().withMessage('Address line 1 is required'),
   body('businessAddress.city').trim().notEmpty().withMessage('City is required'),
   body('businessAddress.postalCode').trim().notEmpty().withMessage('Postal code is required'),
-  body('businessAddress.country').trim().notEmpty().withMessage('Country is required'),
+  body('businessAddress.country').optional().isString().trim(),
   body('averageEarningRange').trim().notEmpty().withMessage('Average earning range is required'),
-  body('identityDocUrl').optional().isString().trim(),
+  body('identityDocUrl').trim().notEmpty().withMessage('Identity document is required'),
   body('businessLicenseUrl').optional().isString().trim(),
 ], validate, userController.applyAsSeller);
 
