@@ -65,15 +65,34 @@ const createOrder = async (buyerId, { items, shippingAddressSnapshot, streamId, 
     }
     sellerId = product.sellerId;
 
-    const unitPrice =
+    let unitPrice =
       product.listingType === 'buy_it_now'
         ? product.effectivePrice()
         : product.currentHighBid || product.startingPrice || 0;
+    let imageUrl = product.images[0] ?? null;
+    let variantName = null;
+
+    if (item.variantId) {
+      const variant = product.variants.id(item.variantId);
+      if (!variant) throw new AppError('Selected variant not found', HTTP_STATUS.NOT_FOUND);
+      if (variant.quantity - variant.quantitySold < item.quantity) {
+        throw new AppError(`Insufficient stock for variant "${variant.name}"`, HTTP_STATUS.CONFLICT);
+      }
+      variantName = variant.name;
+      if (variant.priceOverride != null) {
+        unitPrice = variant.priceOverride;
+      }
+      if (variant.image) {
+        imageUrl = variant.image;
+      }
+    }
 
     return {
       productId: product._id,
+      variantId: item.variantId ? mongoose.Types.ObjectId.createFromHexString(item.variantId.toString()) : null,
+      variantName,
       title: product.title,
-      imageUrl: product.images[0] ?? null,
+      imageUrl,
       quantity: item.quantity,
       unitPrice,
       totalPrice: unitPrice * item.quantity,
