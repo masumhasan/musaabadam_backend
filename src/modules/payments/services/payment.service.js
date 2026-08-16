@@ -290,6 +290,12 @@ const settleInventoryAndBroadcast = async (order) => {
     if (!product || product.listingType === LISTING_TYPES.AUCTION) continue;
 
     product.quantitySold = Math.min(product.quantity, (product.quantitySold || 0) + item.quantity);
+    if (item.variantId) {
+      const variant = product.variants.id(item.variantId);
+      if (variant) {
+        variant.quantitySold = Math.min(variant.quantity, (variant.quantitySold || 0) + item.quantity);
+      }
+    }
     const soldOut = product.quantitySold >= product.quantity;
     if (soldOut) product.status = PRODUCT_STATUS.SOLD_OUT;
     await product.save();
